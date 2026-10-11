@@ -20,7 +20,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var arenaScoresLayout: LinearLayout
     private lateinit var gameView: GameView
 
-    // Settings & Feature Switches
+    // Settings
     private lateinit var switchSound: Switch
     private lateinit var switchVibration: Switch
     private lateinit var switchSpeedAnalytics: Switch
@@ -109,7 +109,6 @@ class MainActivity : AppCompatActivity() {
         val tvDevice = findViewById<TextView>(R.id.tvDeviceType)
         gridOptionsLayout.removeAllViews()
 
-        // Added 5x8 (8 rows x 5 cols for portrait) as requested
         val presets = if (isTablet()) {
             tvDevice.text = "TABLET HARDWARE DETECTED"
             listOf(
@@ -133,7 +132,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         presets.forEachIndexed { idx, pair ->
-            val isDefault = (idx == 1) // 4x4 default
+            val isDefault = (idx == 1)
             val btn = Button(this).apply {
                 text = pair.first
                 textSize = 12f
@@ -253,7 +252,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Apply Settings to GameView
         gameView.audio.isEnabled = switchSound.isChecked
         gameView.isVibrationEnabled = switchVibration.isChecked
 
@@ -290,7 +288,6 @@ class MainActivity : AppCompatActivity() {
         tvTurnIndicator.text = "${current.name}'s Turn"
         tvTurnIndicator.setTextColor(current.color)
 
-        // Calculate total human decision time for percentage distribution
         val totalHumanMillis = eng.players.filter { !it.isBot }.sumOf { it.totalTimeMillis }
 
         arenaScoresLayout.removeAllViews()
@@ -320,7 +317,6 @@ class MainActivity : AppCompatActivity() {
         tvWinnerTitle.setTextColor(winner.color)
         tvWinnerSubtitle.text = "Dominated with ${winner.score} boxes (${eng.rows * eng.cols} total)"
 
-        // 1. Render Standings
         winnerStatsLayout.removeAllViews()
         sorted.forEachIndexed { rank, p ->
             val item = LinearLayout(this).apply {
@@ -367,7 +363,6 @@ class MainActivity : AppCompatActivity() {
             winnerStatsLayout.addView(item)
         }
 
-        // 2. Render Speed IQ & Reaction Time Analytics (Excluding Bots)
         winnerAnalyticsLayout.removeAllViews()
         if (switchSpeedAnalytics.isChecked) {
             tvAnalyticsHeading.visibility = View.VISIBLE
@@ -376,7 +371,6 @@ class MainActivity : AppCompatActivity() {
             val humanPlayers = eng.players.filter { !it.isBot }
             val totalHumanMillis = humanPlayers.sumOf { it.totalTimeMillis }
 
-            // Sort humans by fastest response time
             val rankedBySpeed = humanPlayers.sortedBy { it.getAverageResponseSec() }
             val fastestHuman = rankedBySpeed.firstOrNull { it.movesCount > 0 }
 

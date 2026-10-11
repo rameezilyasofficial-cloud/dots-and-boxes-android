@@ -72,7 +72,7 @@ class GameView @JvmOverloads constructor(
                 textPaint.color = p.color
 
                 val fontMetrics = textPaint.fontMetrics
-                val textY = top + (cellSize / 2f) - ((fontMetrics.descent + fontMetrics.ascent()) / 2f)
+                val textY = top + (cellSize / 2f) - ((fontMetrics.descent + fontMetrics.ascent) / 2f)
                 canvas.drawText(initialLetter, left + (cellSize / 2f), textY, textPaint)
             }
         }
@@ -113,7 +113,7 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 4. Grid Pegs
+        // 4. Corner Pegs
         val dotRadius = min(11f, cellSize * 0.11f)
         for (r in 0..eng.rows) {
             for (c in 0..eng.cols) {

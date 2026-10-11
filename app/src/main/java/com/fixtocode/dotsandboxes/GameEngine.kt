@@ -39,7 +39,6 @@ class GameEngine(
 
         val p = getCurrentPlayer()
 
-        // Track decision time for human players only
         if (!p.isBot) {
             val elapsed = System.currentTimeMillis() - turnStartTimeMillis
             p.totalTimeMillis += elapsed
@@ -54,7 +53,6 @@ class GameEngine(
             if (checkBoardFull()) {
                 isGameOver = true
             } else {
-                // Bonus turn: restart clock for current player
                 startTurnClock()
             }
         } else {
