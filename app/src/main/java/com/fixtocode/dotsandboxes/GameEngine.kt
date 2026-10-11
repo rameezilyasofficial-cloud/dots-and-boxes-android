@@ -1,4 +1,4 @@
-﻿package com.fixtocode.dotsandboxes
+package com.fixtocode.dotsandboxes
 
 data class Player(
     val id: Int,
