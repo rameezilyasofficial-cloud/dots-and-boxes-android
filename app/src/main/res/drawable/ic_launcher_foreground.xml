@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Central Captured Box Glow -->
+    <path
+        android:fillColor="#2238BDF8"
+        android:pathData="M38,38h32v32h-32z" />
+
+    <!-- Connected Grid Lines -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M38,38 L70,38" />
+    <path
+        android:strokeColor="#EF4444"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M38,38 L38,70" />
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M70,38 L70,70" />
+    <path
+        android:strokeColor="#F59E0B"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M38,70 L70,70" />
+
+    <!-- Corner Pegs / Dots -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,38m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,38m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,70m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,70m-4,0a4,4 0 1,1 8,0a4,4 0 1,1 -8,0" />
+</vector>

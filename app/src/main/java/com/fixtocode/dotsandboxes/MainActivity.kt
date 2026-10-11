@@ -13,19 +13,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var configContainer: View
     private lateinit var arenaContainer: View
     private lateinit var gridOptionsLayout: LinearLayout
+    private lateinit var playerCountTabsLayout: LinearLayout
     private lateinit var rosterLayout: LinearLayout
-    private lateinit var playerSeekBar: SeekBar
-    private lateinit var tvPlayerCount: TextView
     private lateinit var tvTurnIndicator: TextView
     private lateinit var arenaScoresLayout: LinearLayout
     private lateinit var gameView: GameView
 
     private val playerColors = intArrayOf(
-        0xFFEF4444.toInt(),
-        0xFFF59E0B.toInt(),
-        0xFF06B6D4.toInt(),
-        0xFF10B981.toInt(),
-        0xFF8B5CF6.toInt()
+        0xFFEF4444.toInt(), // P1 Red
+        0xFFF59E0B.toInt(), // P2 Amber
+        0xFF06B6D4.toInt(), // P3 Cyan
+        0xFF10B981.toInt(), // P4 Green
+        0xFF8B5CF6.toInt()  // P5 Violet
     )
 
     private var selectedRows = 4
@@ -40,15 +39,14 @@ class MainActivity : AppCompatActivity() {
         configContainer = findViewById(R.id.configContainer)
         arenaContainer = findViewById(R.id.arenaContainer)
         gridOptionsLayout = findViewById(R.id.gridOptionsLayout)
+        playerCountTabsLayout = findViewById(R.id.playerCountTabsLayout)
         rosterLayout = findViewById(R.id.rosterLayout)
-        playerSeekBar = findViewById(R.id.playerSeekBar)
-        tvPlayerCount = findViewById(R.id.tvPlayerCount)
         tvTurnIndicator = findViewById(R.id.tvTurnIndicator)
         arenaScoresLayout = findViewById(R.id.arenaScoresLayout)
         gameView = findViewById(R.id.gameView)
 
         setupAdaptiveGridOptions()
-        setupPlayerSlider()
+        setupPlayerCountTabs()
         renderRoster()
 
         findViewById<Button>(R.id.btnStartMatch).setOnClickListener { startMatch() }
@@ -73,20 +71,34 @@ class MainActivity : AppCompatActivity() {
         val tvDevice = findViewById<TextView>(R.id.tvDeviceType)
         gridOptionsLayout.removeAllViews()
 
+        // 5x7 portrait corresponds to 7 rows x 5 cols for vertical screens
         val presets = if (isTablet()) {
-            tvDevice.text = "TABLET HARDWARE DETECTED (EXPANDED ARENA)"
-            listOf("5x5" to Pair(5, 5), "6x6" to Pair(6, 6), "8x8" to Pair(8, 8), "10x10" to Pair(10, 10))
+            tvDevice.text = "TABLET HARDWARE DETECTED"
+            listOf(
+                "4x4" to Pair(4, 4),
+                "5x5" to Pair(5, 5),
+                "5x7" to Pair(7, 5),
+                "6x6" to Pair(6, 6),
+                "8x8" to Pair(8, 8)
+            )
         } else {
-            tvDevice.text = "MOBILE HARDWARE DETECTED (COMPACT ARENA)"
-            listOf("3x3" to Pair(3, 3), "4x4" to Pair(4, 4), "4x5" to Pair(4, 5), "5x5" to Pair(5, 5))
+            tvDevice.text = "SMARTPHONE DISPLAY OPTIMIZED"
+            listOf(
+                "3x3" to Pair(3, 3),
+                "4x4" to Pair(4, 4),
+                "4x5" to Pair(5, 4),
+                "5x5" to Pair(5, 5),
+                "5x7" to Pair(7, 5)
+            )
         }
 
         presets.forEachIndexed { idx, pair ->
+            val isDefault = (idx == 1) // 4x4 default
             val btn = Button(this).apply {
                 text = pair.first
                 textSize = 12f
-                setTextColor(if (idx == 1) Color.BLACK else Color.WHITE)
-                setBackgroundColor(if (idx == 1) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
+                setTextColor(if (isDefault) Color.BLACK else Color.WHITE)
+                setBackgroundColor(if (isDefault) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
                 setOnClickListener {
                     selectedRows = pair.second.first
                     selectedCols = pair.second.second
@@ -99,7 +111,7 @@ class MainActivity : AppCompatActivity() {
                     setTextColor(Color.BLACK)
                 }
             }
-            if (idx == 1) {
+            if (isDefault) {
                 selectedRows = pair.second.first
                 selectedCols = pair.second.second
             }
@@ -107,16 +119,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupPlayerSlider() {
-        playerSeekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) {
-                playerCount = progress
-                tvPlayerCount.text = "$playerCount Players"
-                renderRoster()
+    private fun setupPlayerCountTabs() {
+        playerCountTabsLayout.removeAllViews()
+        val counts = listOf(2, 3, 4, 5)
+
+        counts.forEach { count ->
+            val isSelected = (count == playerCount)
+            val btn = Button(this).apply {
+                text = "${count}P"
+                textSize = 13f
+                val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
+                lp.setMargins(4, 0, 4, 0)
+                layoutParams = lp
+                setTextColor(if (isSelected) Color.BLACK else Color.WHITE)
+                setBackgroundColor(if (isSelected) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
+                setOnClickListener {
+                    playerCount = count
+                    for (i in 0 until playerCountTabsLayout.childCount) {
+                        val b = playerCountTabsLayout.getChildAt(i) as Button
+                        b.setBackgroundColor(0xFF121824.toInt())
+                        b.setTextColor(Color.WHITE)
+                    }
+                    setBackgroundColor(0xFF38BDF8.toInt())
+                    setTextColor(Color.BLACK)
+                    renderRoster()
+                }
             }
-            override fun onStartTrackingTouch(sb: SeekBar?) {}
-            override fun onStopTrackingTouch(sb: SeekBar?) {}
-        })
+            playerCountTabsLayout.addView(btn)
+        }
     }
 
     private fun renderRoster() {
@@ -125,24 +155,24 @@ class MainActivity : AppCompatActivity() {
 
         for (i in 0 until playerCount) {
             val color = playerColors[i]
-            val isBot = (i == 1)
-            val defaultName = if (i == 0) "Player 1" else if (i == 1) "Bot Alpha" else "Player ${i + 1}"
+            val isBot = (i == 1 && playerCount == 2)
+            val defaultName = if (i == 0) "Player 1" else if (i == 1 && isBot) "Bot Alpha" else "Player ${i + 1}"
             val player = Player(i, defaultName, color, isBot)
             activePlayers.add(player)
 
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
-                setPadding(12, 12, 12, 12)
+                setPadding(14, 10, 14, 10)
                 setBackgroundColor(0xFF121824.toInt())
                 val lp = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { setMargins(0, 8, 0, 8) }
+                ).apply { setMargins(0, 6, 0, 6) }
                 layoutParams = lp
             }
 
             val colorBadge = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(28, 28).apply { setMargins(8, 0, 16, 0) }
+                layoutParams = LinearLayout.LayoutParams(26, 26).apply { setMargins(4, 0, 14, 0) }
                 setBackgroundColor(color)
             }
 
@@ -174,6 +204,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startMatch() {
+        // Collect custom names entered in text inputs
+        for (i in 0 until rosterLayout.childCount) {
+            val row = rosterLayout.getChildAt(i) as? LinearLayout ?: continue
+            val etName = row.getChildAt(1) as? EditText ?: continue
+            val inputName = etName.text.toString().trim()
+            if (inputName.isNotEmpty() && i < activePlayers.size) {
+                activePlayers[i].name = inputName
+            }
+        }
+
         configContainer.visibility = View.GONE
         arenaContainer.visibility = View.VISIBLE
 
@@ -204,7 +244,7 @@ class MainActivity : AppCompatActivity() {
         eng.players.forEach { p ->
             val tv = TextView(this).apply {
                 text = "${p.name}: ${p.score}  "
-                textSize = 12f
+                textSize = 13f
                 setTextColor(if (p.id == current.id) p.color else Color.LTGRAY)
                 setPadding(16, 4, 16, 4)
             }
@@ -217,8 +257,8 @@ class MainActivity : AppCompatActivity() {
         val winner = eng.players.maxByOrNull { it.score } ?: return
 
         AlertDialog.Builder(this)
-            .setTitle("VICTORY!")
-            .setMessage("${winner.name} dominates the board with ${winner.score} boxes!")
+            .setTitle("MATCH COMPLETED")
+            .setMessage("${winner.name} won with ${winner.score} boxes!")
             .setPositiveButton("PLAY AGAIN") { _, _ -> startMatch() }
             .setNegativeButton("SETTINGS") { _, _ -> returnToConfig() }
             .setCancelable(false)
