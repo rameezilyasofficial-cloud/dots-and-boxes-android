@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -19,11 +20,18 @@ class MainActivity : AppCompatActivity() {
     private lateinit var arenaScoresLayout: LinearLayout
     private lateinit var gameView: GameView
 
+    // Settings & Feature Switches
+    private lateinit var switchSound: Switch
+    private lateinit var switchVibration: Switch
+    private lateinit var switchSpeedAnalytics: Switch
+
     // Victory Screen Overlay Views
     private lateinit var winnerOverlay: FrameLayout
     private lateinit var tvWinnerTitle: TextView
     private lateinit var tvWinnerSubtitle: TextView
     private lateinit var winnerStatsLayout: LinearLayout
+    private lateinit var tvAnalyticsHeading: TextView
+    private lateinit var winnerAnalyticsLayout: LinearLayout
     private lateinit var btnOverlayPlayAgain: Button
     private lateinit var btnOverlaySettings: Button
 
@@ -53,10 +61,16 @@ class MainActivity : AppCompatActivity() {
         arenaScoresLayout = findViewById(R.id.arenaScoresLayout)
         gameView = findViewById(R.id.gameView)
 
+        switchSound = findViewById(R.id.switchSound)
+        switchVibration = findViewById(R.id.switchVibration)
+        switchSpeedAnalytics = findViewById(R.id.switchSpeedAnalytics)
+
         winnerOverlay = findViewById(R.id.winnerOverlay)
         tvWinnerTitle = findViewById(R.id.tvWinnerTitle)
         tvWinnerSubtitle = findViewById(R.id.tvWinnerSubtitle)
         winnerStatsLayout = findViewById(R.id.winnerStatsLayout)
+        tvAnalyticsHeading = findViewById(R.id.tvAnalyticsHeading)
+        winnerAnalyticsLayout = findViewById(R.id.winnerAnalyticsLayout)
         btnOverlayPlayAgain = findViewById(R.id.btnOverlayPlayAgain)
         btnOverlaySettings = findViewById(R.id.btnOverlaySettings)
 
@@ -95,12 +109,14 @@ class MainActivity : AppCompatActivity() {
         val tvDevice = findViewById<TextView>(R.id.tvDeviceType)
         gridOptionsLayout.removeAllViews()
 
+        // Added 5x8 (8 rows x 5 cols for portrait) as requested
         val presets = if (isTablet()) {
             tvDevice.text = "TABLET HARDWARE DETECTED"
             listOf(
                 "4x4" to Pair(4, 4),
                 "5x5" to Pair(5, 5),
                 "5x7" to Pair(7, 5),
+                "5x8" to Pair(8, 5),
                 "6x6" to Pair(6, 6),
                 "8x8" to Pair(8, 8)
             )
@@ -111,12 +127,13 @@ class MainActivity : AppCompatActivity() {
                 "4x4" to Pair(4, 4),
                 "4x5" to Pair(5, 4),
                 "5x5" to Pair(5, 5),
-                "5x7" to Pair(7, 5)
+                "5x7" to Pair(7, 5),
+                "5x8" to Pair(8, 5)
             )
         }
 
         presets.forEachIndexed { idx, pair ->
-            val isDefault = (idx == 1)
+            val isDefault = (idx == 1) // 4x4 default
             val btn = Button(this).apply {
                 text = pair.first
                 textSize = 12f
@@ -236,13 +253,22 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Apply Settings to GameView
+        gameView.audio.isEnabled = switchSound.isChecked
+        gameView.isVibrationEnabled = switchVibration.isChecked
+
         winnerOverlay.visibility = View.GONE
         configContainer.visibility = View.GONE
         arenaContainer.visibility = View.VISIBLE
 
-        activePlayers.forEach { it.score = 0 }
+        activePlayers.forEach {
+            it.score = 0
+            it.totalTimeMillis = 0L
+            it.movesCount = 0
+        }
         val engine = GameEngine(selectedRows, selectedCols, activePlayers)
         gameView.engine = engine
+        engine.startTurnClock()
         gameView.invalidate()
 
         updateArenaHud()
@@ -264,13 +290,22 @@ class MainActivity : AppCompatActivity() {
         tvTurnIndicator.text = "${current.name}'s Turn"
         tvTurnIndicator.setTextColor(current.color)
 
+        // Calculate total human decision time for percentage distribution
+        val totalHumanMillis = eng.players.filter { !it.isBot }.sumOf { it.totalTimeMillis }
+
         arenaScoresLayout.removeAllViews()
         eng.players.forEach { p ->
             val tv = TextView(this).apply {
-                text = "${p.name}: ${p.score}  "
-                textSize = 13f
+                val baseText = "${p.name}: ${p.score}"
+                text = if (switchSpeedAnalytics.isChecked && !p.isBot && totalHumanMillis > 0) {
+                    val pct = (p.totalTimeMillis.toDouble() / totalHumanMillis.toDouble()) * 100.0
+                    "$baseText (${String.format(Locale.US, "%.0f", pct)}% time)  "
+                } else {
+                    "$baseText  "
+                }
+                textSize = 12f
                 setTextColor(if (p.id == current.id) p.color else Color.LTGRAY)
-                setPadding(16, 4, 16, 4)
+                setPadding(14, 4, 14, 4)
             }
             arenaScoresLayout.addView(tv)
         }
@@ -285,42 +320,43 @@ class MainActivity : AppCompatActivity() {
         tvWinnerTitle.setTextColor(winner.color)
         tvWinnerSubtitle.text = "Dominated with ${winner.score} boxes (${eng.rows * eng.cols} total)"
 
+        // 1. Render Standings
         winnerStatsLayout.removeAllViews()
         sorted.forEachIndexed { rank, p ->
             val item = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
-                setPadding(16, 12, 16, 12)
+                setPadding(14, 10, 14, 10)
                 setBackgroundResource(R.drawable.bg_stat_item)
                 val lp = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { setMargins(0, 5, 0, 5) }
+                ).apply { setMargins(0, 4, 0, 4) }
                 layoutParams = lp
             }
 
             val rankBadge = TextView(this).apply {
                 text = "#${rank + 1} "
                 setTextColor(Color.WHITE)
-                textSize = 13f
+                textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
             }
 
             val dot = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(20, 20).apply { setMargins(8, 8, 12, 0) }
+                layoutParams = LinearLayout.LayoutParams(18, 18).apply { setMargins(6, 6, 10, 0) }
                 setBackgroundColor(p.color)
             }
 
             val nameView = TextView(this).apply {
-                text = p.name
+                text = p.name + if (p.isBot) " (AI)" else ""
                 setTextColor(Color.WHITE)
-                textSize = 13f
+                textSize = 12f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
 
             val scoreView = TextView(this).apply {
                 text = "${p.score} pts"
                 setTextColor(p.color)
-                textSize = 13f
+                textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
             }
 
@@ -329,6 +365,59 @@ class MainActivity : AppCompatActivity() {
             item.addView(nameView)
             item.addView(scoreView)
             winnerStatsLayout.addView(item)
+        }
+
+        // 2. Render Speed IQ & Reaction Time Analytics (Excluding Bots)
+        winnerAnalyticsLayout.removeAllViews()
+        if (switchSpeedAnalytics.isChecked) {
+            tvAnalyticsHeading.visibility = View.VISIBLE
+            winnerAnalyticsLayout.visibility = View.VISIBLE
+
+            val humanPlayers = eng.players.filter { !it.isBot }
+            val totalHumanMillis = humanPlayers.sumOf { it.totalTimeMillis }
+
+            // Sort humans by fastest response time
+            val rankedBySpeed = humanPlayers.sortedBy { it.getAverageResponseSec() }
+            val fastestHuman = rankedBySpeed.firstOrNull { it.movesCount > 0 }
+
+            humanPlayers.forEach { p ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(14, 8, 14, 8)
+                    setBackgroundResource(R.drawable.bg_stat_item)
+                    val lp = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { setMargins(0, 3, 0, 3) }
+                    layoutParams = lp
+                }
+
+                val pct = if (totalHumanMillis > 0) (p.totalTimeMillis.toDouble() / totalHumanMillis.toDouble()) * 100.0 else 0.0
+                val avgSec = p.getAverageResponseSec()
+
+                val nameLabel = TextView(this).apply {
+                    val badge = if (p.id == fastestHuman?.id && humanPlayers.size > 1) " ⚡ FASTEST" else ""
+                    text = "${p.name}$badge"
+                    setTextColor(if (p.id == fastestHuman?.id && humanPlayers.size > 1) 0xFF38BDF8.toInt() else Color.WHITE)
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+
+                val metricsLabel = TextView(this).apply {
+                    text = "${String.format(Locale.US, "%.1f", avgSec)}s avg  |  ${String.format(Locale.US, "%.0f", pct)}% time"
+                    setTextColor(p.color)
+                    textSize = 11f
+                    typeface = Typeface.DEFAULT_BOLD
+                }
+
+                row.addView(nameLabel)
+                row.addView(metricsLabel)
+                winnerAnalyticsLayout.addView(row)
+            }
+        } else {
+            tvAnalyticsHeading.visibility = View.GONE
+            winnerAnalyticsLayout.visibility = View.GONE
         }
 
         winnerOverlay.visibility = View.VISIBLE

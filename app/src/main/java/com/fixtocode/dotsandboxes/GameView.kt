@@ -18,7 +18,8 @@ class GameView @JvmOverloads constructor(
 
     var engine: GameEngine? = null
     var onTurnCompleted: (() -> Unit)? = null
-    private val audio = AudioFx()
+    val audio = AudioFx()
+    var isVibrationEnabled: Boolean = true
 
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFF475569.toInt()
@@ -45,7 +46,7 @@ class GameView @JvmOverloads constructor(
         super.onDraw(canvas)
         val eng = engine ?: return
 
-        val padding = 44f
+        val padding = 40f
         val availW = width - (padding * 2)
         val availH = height - (padding * 2)
         val cellSize = min(availW / eng.cols, availH / eng.rows)
@@ -53,7 +54,7 @@ class GameView @JvmOverloads constructor(
         val startX = (width - (cellSize * eng.cols)) / 2f
         val startY = (height - (cellSize * eng.rows)) / 2f
 
-        // 1. Draw Captured Boxes with Centered Player Initials
+        // 1. Boxes with Centered Initial
         for (r in 0 until eng.rows) {
             for (c in 0 until eng.cols) {
                 val ownerId = eng.boxes[r][c] ?: continue
@@ -63,11 +64,9 @@ class GameView @JvmOverloads constructor(
                 val top = startY + (r * cellSize)
                 val rect = RectF(left + 3f, top + 3f, left + cellSize - 3f, top + cellSize - 3f)
 
-                // Fill Box Tint (18% Opacity)
                 boxFillPaint.color = (p.color and 0x00FFFFFF) or 0x2E000000
                 canvas.drawRoundRect(rect, 10f, 10f, boxFillPaint)
 
-                // Extract First Letter of Player Name (e.g. Ali -> "A")
                 val initialLetter = if (p.name.isNotBlank()) p.name.trim().take(1).uppercase() else "P"
                 textPaint.textSize = cellSize * 0.44f
                 textPaint.color = p.color
@@ -78,7 +77,7 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 2. Draw Horizontal Lines
+        // 2. Horizontal Lines
         for (r in 0..eng.rows) {
             for (c in 0 until eng.cols) {
                 val ownerId = eng.hLines[r][c]
@@ -96,7 +95,7 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 3. Draw Vertical Lines
+        // 3. Vertical Lines
         for (r in 0 until eng.rows) {
             for (c in 0..eng.cols) {
                 val ownerId = eng.vLines[r][c]
@@ -114,7 +113,7 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 4. Draw Corner Dots (Pegs)
+        // 4. Grid Pegs
         val dotRadius = min(11f, cellSize * 0.11f)
         for (r in 0..eng.rows) {
             for (c in 0..eng.cols) {
@@ -130,7 +129,7 @@ class GameView @JvmOverloads constructor(
         val eng = engine ?: return false
         if (eng.isGameOver || eng.getCurrentPlayer().isBot) return false
 
-        val padding = 44f
+        val padding = 40f
         val availW = width - (padding * 2)
         val availH = height - (padding * 2)
         val cellSize = min(availW / eng.cols, availH / eng.rows)
@@ -141,7 +140,6 @@ class GameView @JvmOverloads constructor(
         val tx = event.x
         val ty = event.y
 
-        // Check horizontal hit
         for (r in 0..eng.rows) {
             for (c in 0 until eng.cols) {
                 if (eng.hLines[r][c] != null) continue
@@ -156,7 +154,6 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // Check vertical hit
         for (r in 0 until eng.rows) {
             for (c in 0..eng.cols) {
                 if (eng.vLines[r][c] != null) continue
@@ -177,7 +174,9 @@ class GameView @JvmOverloads constructor(
         val eng = engine ?: return
         val captured = eng.claimLine(isH, r, c)
         if (captured >= 0) {
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            if (isVibrationEnabled) {
+                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            }
             if (captured > 0) audio.boxClaimed() else audio.snap()
             invalidate()
             onTurnCompleted?.invoke()

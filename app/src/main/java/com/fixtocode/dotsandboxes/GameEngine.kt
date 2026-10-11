@@ -5,8 +5,14 @@ data class Player(
     var name: String,
     val color: Int,
     var isBot: Boolean = false,
-    var score: Int = 0
-)
+    var score: Int = 0,
+    var totalTimeMillis: Long = 0L,
+    var movesCount: Int = 0
+) {
+    fun getAverageResponseSec(): Double {
+        return if (movesCount > 0) (totalTimeMillis / 1000.0) / movesCount else 0.0
+    }
+}
 
 class GameEngine(
     val rows: Int,
@@ -19,14 +25,27 @@ class GameEngine(
 
     var currentPlayerIdx = 0
     var isGameOver = false
+    var turnStartTimeMillis: Long = System.currentTimeMillis()
 
     fun getCurrentPlayer(): Player = players[currentPlayerIdx]
+
+    fun startTurnClock() {
+        turnStartTimeMillis = System.currentTimeMillis()
+    }
 
     fun claimLine(isH: Boolean, r: Int, c: Int): Int {
         if (isH && hLines[r][c] != null) return -1
         if (!isH && vLines[r][c] != null) return -1
 
         val p = getCurrentPlayer()
+
+        // Track decision time for human players only
+        if (!p.isBot) {
+            val elapsed = System.currentTimeMillis() - turnStartTimeMillis
+            p.totalTimeMillis += elapsed
+            p.movesCount++
+        }
+
         if (isH) hLines[r][c] = p.id else vLines[r][c] = p.id
 
         val captured = evaluateBoxes(isH, r, c, p.id)
@@ -34,9 +53,13 @@ class GameEngine(
             p.score += captured
             if (checkBoardFull()) {
                 isGameOver = true
+            } else {
+                // Bonus turn: restart clock for current player
+                startTurnClock()
             }
         } else {
             currentPlayerIdx = (currentPlayerIdx + 1) % players.size
+            startTurnClock()
         }
         return captured
     }

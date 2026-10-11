@@ -8,8 +8,10 @@ import kotlin.math.sin
 
 class AudioFx {
     private val sampleRate = 44100
+    var isEnabled: Boolean = true
 
     private fun playTone(freq: Double, durationMs: Int) {
+        if (!isEnabled) return
         thread(start = true) {
             try {
                 val numSamples = (sampleRate * (durationMs / 1000.0)).toInt()

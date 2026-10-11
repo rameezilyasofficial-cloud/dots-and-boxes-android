@@ -31,7 +31,7 @@
                 android:id="@+id/tvDeviceType"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="DETECTING DISPLAY..."
+                android:text="DETECTING HARDWARE..."
                 android:textColor="@color/text_muted"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp" />
@@ -40,11 +40,11 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="GRID SIZE (UP TO 5x7)"
+                android:text="GRID RATIO (UP TO 5x8)"
                 android:textColor="@color/text_light"
                 android:textStyle="bold"
                 android:textSize="13sp"
-                android:layout_marginTop="24dp" />
+                android:layout_marginTop="22dp" />
 
             <HorizontalScrollView
                 android:layout_width="match_parent"
@@ -66,12 +66,12 @@
                 android:textColor="@color/text_light"
                 android:textStyle="bold"
                 android:textSize="13sp"
-                android:layout_marginTop="20dp" />
+                android:layout_marginTop="18dp" />
 
             <LinearLayout
                 android:id="@+id/playerCountTabsLayout"
                 android:layout_width="match_parent"
-                android:layout_height="48dp"
+                android:layout_height="46dp"
                 android:orientation="horizontal"
                 android:layout_marginTop="8dp" />
 
@@ -79,11 +79,11 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="PLAYERS CONFIGURATION"
+                android:text="ROSTER CONFIGURATION"
                 android:textColor="@color/text_light"
                 android:textStyle="bold"
                 android:textSize="13sp"
-                android:layout_marginTop="20dp" />
+                android:layout_marginTop="18dp" />
 
             <LinearLayout
                 android:id="@+id/rosterLayout"
@@ -91,6 +91,52 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:layout_marginTop="8dp" />
+
+            <!-- SETTINGS & ANALYTICS CARD -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="SETTINGS &amp; SPEED IQ ANALYTICS"
+                android:textColor="@color/text_light"
+                android:textStyle="bold"
+                android:textSize="13sp"
+                android:layout_marginTop="20dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="#121824"
+                android:padding="12dp"
+                android:layout_marginTop="8dp">
+
+                <Switch
+                    android:id="@+id/switchSound"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Sound Effects (Audio FX)"
+                    android:textColor="@color/text_light"
+                    android:checked="true"
+                    android:paddingVertical="4dp" />
+
+                <Switch
+                    android:id="@+id/switchVibration"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Vibration (Haptic Tap)"
+                    android:textColor="@color/text_light"
+                    android:checked="true"
+                    android:paddingVertical="4dp" />
+
+                <Switch
+                    android:id="@+id/switchSpeedAnalytics"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Speed IQ / Reaction Analytics"
+                    android:textColor="@color/accent_blue"
+                    android:checked="true"
+                    android:paddingVertical="4dp" />
+            </LinearLayout>
 
             <Button
                 android:id="@+id/btnStartMatch"
@@ -100,7 +146,7 @@
                 android:textStyle="bold"
                 android:textColor="#000000"
                 android:backgroundTint="@color/accent_blue"
-                android:layout_marginTop="28dp" />
+                android:layout_marginTop="24dp" />
         </LinearLayout>
     </ScrollView>
 
@@ -149,7 +195,7 @@
                 android:tint="@color/text_light" />
         </RelativeLayout>
 
-        <!-- Scoreboard Bar -->
+        <!-- Live Scoreboard Bar -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -176,74 +222,105 @@
         android:id="@+id/winnerOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#D90A0D14"
+        android:background="#E60A0D14"
         android:visibility="gone"
         android:clickable="true"
         android:focusable="true">
 
-        <LinearLayout
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginHorizontal="26dp"
-            android:background="@drawable/bg_victory_card"
-            android:orientation="vertical"
-            android:padding="24dp"
-            android:gravity="center_horizontal">
+            android:layout_gravity="center">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="🏆"
-                android:textSize="46sp" />
-
-            <TextView
-                android:id="@+id/tvWinnerTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="PLAYER 1 WINS!"
-                android:textColor="#38BDF8"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:layout_marginTop="8dp" />
-
-            <TextView
-                android:id="@+id/tvWinnerSubtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Captured 12 Boxes"
-                android:textColor="@color/text_muted"
-                android:textSize="13sp"
-                android:layout_marginTop="4dp" />
-
-            <!-- Rank List -->
             <LinearLayout
-                android:id="@+id/winnerStatsLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:background="@drawable/bg_victory_card"
                 android:orientation="vertical"
-                android:layout_marginTop="16dp" />
+                android:padding="22dp"
+                android:gravity="center_horizontal">
 
-            <!-- Buttons -->
-            <Button
-                android:id="@+id/btnOverlayPlayAgain"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:text="PLAY AGAIN"
-                android:textStyle="bold"
-                android:textColor="#000000"
-                android:backgroundTint="@color/accent_blue"
-                android:layout_marginTop="20dp" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🏆"
+                    android:textSize="44sp" />
 
-            <Button
-                android:id="@+id/btnOverlaySettings"
-                android:layout_width="match_parent"
-                android:layout_height="46dp"
-                android:text="CHANGE SETTINGS"
-                android:textStyle="bold"
-                android:textColor="@color/text_light"
-                android:backgroundTint="#1E293B"
-                android:layout_marginTop="8dp" />
-        </LinearLayout>
+                <TextView
+                    android:id="@+id/tvWinnerTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PLAYER 1 WINS!"
+                    android:textColor="#38BDF8"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:id="@+id/tvWinnerSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Dominated the grid"
+                    android:textColor="@color/text_muted"
+                    android:textSize="12sp"
+                    android:layout_marginTop="2dp" />
+
+                <!-- Standings Section -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="MATCH STANDINGS"
+                    android:textColor="@color/text_light"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="14dp" />
+
+                <LinearLayout
+                    android:id="@+id/winnerStatsLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="6dp" />
+
+                <!-- Speed IQ & Reaction Time Analytics Section -->
+                <TextView
+                    android:id="@+id/tvAnalyticsHeading"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="⚡ SPEED IQ &amp; REFLEX ANALYTICS"
+                    android:textColor="#38BDF8"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="14dp" />
+
+                <LinearLayout
+                    android:id="@+id/winnerAnalyticsLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="6dp" />
+
+                <Button
+                    android:id="@+id/btnOverlayPlayAgain"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:text="PLAY AGAIN"
+                    android:textStyle="bold"
+                    android:textColor="#000000"
+                    android:backgroundTint="@color/accent_blue"
+                    android:layout_marginTop="18dp" />
+
+                <Button
+                    android:id="@+id/btnOverlaySettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:text="CHANGE SETTINGS"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_light"
+                    android:backgroundTint="#1E293B"
+                    android:layout_marginTop="8dp" />
+            </LinearLayout>
+        </ScrollView>
     </FrameLayout>
 </FrameLayout>
