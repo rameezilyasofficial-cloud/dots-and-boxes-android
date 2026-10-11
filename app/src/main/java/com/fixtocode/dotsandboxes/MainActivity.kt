@@ -2,10 +2,10 @@ package com.fixtocode.dotsandboxes
 
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Bundle
 import android.view.View
 import android.widget.*
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
@@ -18,6 +18,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvTurnIndicator: TextView
     private lateinit var arenaScoresLayout: LinearLayout
     private lateinit var gameView: GameView
+
+    // Victory Screen Overlay Views
+    private lateinit var winnerOverlay: FrameLayout
+    private lateinit var tvWinnerTitle: TextView
+    private lateinit var tvWinnerSubtitle: TextView
+    private lateinit var winnerStatsLayout: LinearLayout
+    private lateinit var btnOverlayPlayAgain: Button
+    private lateinit var btnOverlaySettings: Button
 
     private val playerColors = intArrayOf(
         0xFFEF4444.toInt(), // P1 Red
@@ -45,6 +53,13 @@ class MainActivity : AppCompatActivity() {
         arenaScoresLayout = findViewById(R.id.arenaScoresLayout)
         gameView = findViewById(R.id.gameView)
 
+        winnerOverlay = findViewById(R.id.winnerOverlay)
+        tvWinnerTitle = findViewById(R.id.tvWinnerTitle)
+        tvWinnerSubtitle = findViewById(R.id.tvWinnerSubtitle)
+        winnerStatsLayout = findViewById(R.id.winnerStatsLayout)
+        btnOverlayPlayAgain = findViewById(R.id.btnOverlayPlayAgain)
+        btnOverlaySettings = findViewById(R.id.btnOverlaySettings)
+
         setupAdaptiveGridOptions()
         setupPlayerCountTabs()
         renderRoster()
@@ -53,10 +68,19 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnLeaveArena).setOnClickListener { returnToConfig() }
         findViewById<ImageButton>(R.id.btnResetMatch).setOnClickListener { startMatch() }
 
+        btnOverlayPlayAgain.setOnClickListener {
+            winnerOverlay.visibility = View.GONE
+            startMatch()
+        }
+        btnOverlaySettings.setOnClickListener {
+            winnerOverlay.visibility = View.GONE
+            returnToConfig()
+        }
+
         gameView.onTurnCompleted = {
             updateArenaHud()
             if (gameView.engine?.isGameOver == true) {
-                showVictoryModal()
+                gameView.postDelayed({ showVictoryModal() }, 350L)
             }
         }
     }
@@ -71,7 +95,6 @@ class MainActivity : AppCompatActivity() {
         val tvDevice = findViewById<TextView>(R.id.tvDeviceType)
         gridOptionsLayout.removeAllViews()
 
-        // 5x7 portrait corresponds to 7 rows x 5 cols for vertical screens
         val presets = if (isTablet()) {
             tvDevice.text = "TABLET HARDWARE DETECTED"
             listOf(
@@ -93,7 +116,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         presets.forEachIndexed { idx, pair ->
-            val isDefault = (idx == 1) // 4x4 default
+            val isDefault = (idx == 1)
             val btn = Button(this).apply {
                 text = pair.first
                 textSize = 12f
@@ -204,7 +227,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startMatch() {
-        // Collect custom names entered in text inputs
         for (i in 0 until rosterLayout.childCount) {
             val row = rosterLayout.getChildAt(i) as? LinearLayout ?: continue
             val etName = row.getChildAt(1) as? EditText ?: continue
@@ -214,6 +236,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        winnerOverlay.visibility = View.GONE
         configContainer.visibility = View.GONE
         arenaContainer.visibility = View.VISIBLE
 
@@ -230,6 +253,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun returnToConfig() {
+        winnerOverlay.visibility = View.GONE
         arenaContainer.visibility = View.GONE
         configContainer.visibility = View.VISIBLE
     }
@@ -254,14 +278,59 @@ class MainActivity : AppCompatActivity() {
 
     private fun showVictoryModal() {
         val eng = gameView.engine ?: return
-        val winner = eng.players.maxByOrNull { it.score } ?: return
+        val sorted = eng.players.sortedByDescending { it.score }
+        val winner = sorted.firstOrNull() ?: return
 
-        AlertDialog.Builder(this)
-            .setTitle("MATCH COMPLETED")
-            .setMessage("${winner.name} won with ${winner.score} boxes!")
-            .setPositiveButton("PLAY AGAIN") { _, _ -> startMatch() }
-            .setNegativeButton("SETTINGS") { _, _ -> returnToConfig() }
-            .setCancelable(false)
-            .show()
+        tvWinnerTitle.text = "${winner.name.uppercase()} WINS!"
+        tvWinnerTitle.setTextColor(winner.color)
+        tvWinnerSubtitle.text = "Dominated with ${winner.score} boxes (${eng.rows * eng.cols} total)"
+
+        winnerStatsLayout.removeAllViews()
+        sorted.forEachIndexed { rank, p ->
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(16, 12, 16, 12)
+                setBackgroundResource(R.drawable.bg_stat_item)
+                val lp = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { setMargins(0, 5, 0, 5) }
+                layoutParams = lp
+            }
+
+            val rankBadge = TextView(this).apply {
+                text = "#${rank + 1} "
+                setTextColor(Color.WHITE)
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+            }
+
+            val dot = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(20, 20).apply { setMargins(8, 8, 12, 0) }
+                setBackgroundColor(p.color)
+            }
+
+            val nameView = TextView(this).apply {
+                text = p.name
+                setTextColor(Color.WHITE)
+                textSize = 13f
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            }
+
+            val scoreView = TextView(this).apply {
+                text = "${p.score} pts"
+                setTextColor(p.color)
+                textSize = 13f
+                typeface = Typeface.DEFAULT_BOLD
+            }
+
+            item.addView(rankBadge)
+            item.addView(dot)
+            item.addView(nameView)
+            item.addView(scoreView)
+            winnerStatsLayout.addView(item)
+        }
+
+        winnerOverlay.visibility = View.VISIBLE
     }
 }

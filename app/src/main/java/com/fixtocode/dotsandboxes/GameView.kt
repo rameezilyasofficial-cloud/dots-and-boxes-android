@@ -38,7 +38,6 @@ class GameView @JvmOverloads constructor(
     }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
-        textSize = 48f
         isFakeBoldText = true
     }
 
@@ -46,7 +45,7 @@ class GameView @JvmOverloads constructor(
         super.onDraw(canvas)
         val eng = engine ?: return
 
-        val padding = 48f
+        val padding = 44f
         val availW = width - (padding * 2)
         val availH = height - (padding * 2)
         val cellSize = min(availW / eng.cols, availH / eng.rows)
@@ -54,6 +53,7 @@ class GameView @JvmOverloads constructor(
         val startX = (width - (cellSize * eng.cols)) / 2f
         val startY = (height - (cellSize * eng.rows)) / 2f
 
+        // 1. Draw Captured Boxes with Centered Player Initials
         for (r in 0 until eng.rows) {
             for (c in 0 until eng.cols) {
                 val ownerId = eng.boxes[r][c] ?: continue
@@ -61,17 +61,24 @@ class GameView @JvmOverloads constructor(
 
                 val left = startX + (c * cellSize)
                 val top = startY + (r * cellSize)
-                val rect = RectF(left + 4f, top + 4f, left + cellSize - 4f, top + cellSize - 4f)
+                val rect = RectF(left + 3f, top + 3f, left + cellSize - 3f, top + cellSize - 3f)
 
-                boxFillPaint.color = (p.color and 0x00FFFFFF) or 0x33000000
-                canvas.drawRoundRect(rect, 12f, 12f, boxFillPaint)
+                // Fill Box Tint (18% Opacity)
+                boxFillPaint.color = (p.color and 0x00FFFFFF) or 0x2E000000
+                canvas.drawRoundRect(rect, 10f, 10f, boxFillPaint)
 
+                // Extract First Letter of Player Name (e.g. Ali -> "A")
+                val initialLetter = if (p.name.isNotBlank()) p.name.trim().take(1).uppercase() else "P"
+                textPaint.textSize = cellSize * 0.44f
                 textPaint.color = p.color
-                val textY = top + (cellSize / 2f) - ((textPaint.descent() + textPaint.ascent()) / 2f)
-                canvas.drawText(p.name.take(1).uppercase(), left + (cellSize / 2f), textY, textPaint)
+
+                val fontMetrics = textPaint.fontMetrics
+                val textY = top + (cellSize / 2f) - ((fontMetrics.descent + fontMetrics.ascent()) / 2f)
+                canvas.drawText(initialLetter, left + (cellSize / 2f), textY, textPaint)
             }
         }
 
+        // 2. Draw Horizontal Lines
         for (r in 0..eng.rows) {
             for (c in 0 until eng.cols) {
                 val ownerId = eng.hLines[r][c]
@@ -89,6 +96,7 @@ class GameView @JvmOverloads constructor(
             }
         }
 
+        // 3. Draw Vertical Lines
         for (r in 0 until eng.rows) {
             for (c in 0..eng.cols) {
                 val ownerId = eng.vLines[r][c]
@@ -106,7 +114,8 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        val dotRadius = min(12f, cellSize * 0.12f)
+        // 4. Draw Corner Dots (Pegs)
+        val dotRadius = min(11f, cellSize * 0.11f)
         for (r in 0..eng.rows) {
             for (c in 0..eng.cols) {
                 val cx = startX + (c * cellSize)
@@ -121,7 +130,7 @@ class GameView @JvmOverloads constructor(
         val eng = engine ?: return false
         if (eng.isGameOver || eng.getCurrentPlayer().isBot) return false
 
-        val padding = 48f
+        val padding = 44f
         val availW = width - (padding * 2)
         val availH = height - (padding * 2)
         val cellSize = min(availW / eng.cols, availH / eng.rows)
@@ -132,6 +141,7 @@ class GameView @JvmOverloads constructor(
         val tx = event.x
         val ty = event.y
 
+        // Check horizontal hit
         for (r in 0..eng.rows) {
             for (c in 0 until eng.cols) {
                 if (eng.hLines[r][c] != null) continue
@@ -146,6 +156,7 @@ class GameView @JvmOverloads constructor(
             }
         }
 
+        // Check vertical hit
         for (r in 0 until eng.rows) {
             for (c in 0..eng.cols) {
                 if (eng.vLines[r][c] != null) continue

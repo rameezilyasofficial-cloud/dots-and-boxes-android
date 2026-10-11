@@ -164,10 +164,86 @@
                 android:paddingHorizontal="12dp" />
         </HorizontalScrollView>
 
-        <!-- Canvas -->
+        <!-- Canvas Game Surface -->
         <com.fixtocode.dotsandboxes.GameView
             android:id="@+id/gameView"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
     </LinearLayout>
+
+    <!-- WINDOW 3: VICTORY POPUP OVERLAY -->
+    <FrameLayout
+        android:id="@+id/winnerOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#D90A0D14"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginHorizontal="26dp"
+            android:background="@drawable/bg_victory_card"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🏆"
+                android:textSize="46sp" />
+
+            <TextView
+                android:id="@+id/tvWinnerTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="PLAYER 1 WINS!"
+                android:textColor="#38BDF8"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:id="@+id/tvWinnerSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Captured 12 Boxes"
+                android:textColor="@color/text_muted"
+                android:textSize="13sp"
+                android:layout_marginTop="4dp" />
+
+            <!-- Rank List -->
+            <LinearLayout
+                android:id="@+id/winnerStatsLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="16dp" />
+
+            <!-- Buttons -->
+            <Button
+                android:id="@+id/btnOverlayPlayAgain"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:text="PLAY AGAIN"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:backgroundTint="@color/accent_blue"
+                android:layout_marginTop="20dp" />
+
+            <Button
+                android:id="@+id/btnOverlaySettings"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:text="CHANGE SETTINGS"
+                android:textStyle="bold"
+                android:textColor="@color/text_light"
+                android:backgroundTint="#1E293B"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+    </FrameLayout>
 </FrameLayout>
