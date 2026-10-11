@@ -1,4 +1,4 @@
-﻿package com.fixtocode.dotsandboxes
+package com.fixtocode.dotsandboxes
 
 import android.media.AudioAttributes
 import android.media.AudioFormat
@@ -42,7 +42,7 @@ class AudioFx {
                 track.play()
                 Thread.sleep(durationMs.toLong() + 20)
                 track.release()
-            } catch (_: Exception) {}
+            } catch (e: Exception) {}
         }
     }
 
