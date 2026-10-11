@@ -1,4 +1,4 @@
-﻿package com.fixtocode.dotsandboxes
+package com.fixtocode.dotsandboxes
 
 import android.content.res.Configuration
 import android.graphics.Color
@@ -185,7 +185,7 @@ class MainActivity : AppCompatActivity() {
         updateArenaHud()
 
         if (engine.getCurrentPlayer().isBot) {
-            gameView.postDelayed({ gameView.runBotTurn() }, 400)
+            gameView.postDelayed({ gameView.runBotTurn() }, 400L)
         }
     }
 

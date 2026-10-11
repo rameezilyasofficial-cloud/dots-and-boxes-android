@@ -1,4 +1,4 @@
-﻿package com.fixtocode.dotsandboxes
+package com.fixtocode.dotsandboxes
 
 import android.content.Context
 import android.graphics.Canvas
@@ -174,7 +174,7 @@ class GameView @JvmOverloads constructor(
             if (eng.isGameOver) {
                 audio.victory()
             } else if (eng.getCurrentPlayer().isBot) {
-                postDelayed({ runBotTurn() }, 400)
+                postDelayed({ runBotTurn() }, 400L)
             }
         }
     }
