@@ -205,7 +205,6 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- Top HUD -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -242,7 +241,6 @@
                 android:tint="@color/text_light" />
         </RelativeLayout>
 
-        <!-- Live Scoreboard Bar -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -257,7 +255,6 @@
                 android:paddingHorizontal="12dp" />
         </HorizontalScrollView>
 
-        <!-- Canvas Game Surface -->
         <com.fixtocode.dotsandboxes.GameView
             android:id="@+id/gameView"
             android:layout_width="match_parent"
@@ -313,7 +310,6 @@
                     android:textSize="12sp"
                     android:layout_marginTop="2dp" />
 
-                <!-- Standings Section -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -330,7 +326,6 @@
                     android:orientation="vertical"
                     android:layout_marginTop="6dp" />
 
-                <!-- Speed IQ & Reaction Time Analytics Section -->
                 <TextView
                     android:id="@+id/tvAnalyticsHeading"
                     android:layout_width="match_parent"
@@ -369,5 +364,164 @@
                     android:layout_marginTop="8dp" />
             </LinearLayout>
         </ScrollView>
+    </FrameLayout>
+
+    <!-- WINDOW 4: 6-SECOND INTERSTITIAL AD OVERLAY (Shows Every 2 Plays) -->
+    <FrameLayout
+        android:id="@+id/adOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#F5070A10"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginHorizontal="24dp"
+            android:background="@drawable/bg_victory_card"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center_horizontal">
+
+            <!-- Top Ad Bar: Sponsored Tag + 6s Countdown Pill -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvAdBadge"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="SPONSORED • R.A CODEC"
+                    android:textColor="#F59E0B"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvAdCountdown"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_stat_item"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="5dp"
+                    android:text="Ad ends in 6s"
+                    android:textColor="#38BDF8"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🚀"
+                android:textSize="48sp"
+                android:layout_marginTop="20dp" />
+
+            <TextView
+                android:id="@+id/tvAdHeadline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="FixToCode Official"
+                android:textColor="#F8FAFC"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/tvAdDescription"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Explore high-performance apps, C++ tools, and tech breakdowns by Rameez Ahmad."
+                android:textColor="@color/text_muted"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:layout_marginTop="8dp" />
+
+            <Button
+                android:id="@+id/btnAdAction"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:text="VISIT OFFICIAL SITE ↗"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:backgroundTint="#F59E0B"
+                android:layout_marginTop="24dp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- WINDOW 5: DAILY WEB UPDATE AVAILABLE POPUP -->
+    <FrameLayout
+        android:id="@+id/updateOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#E60A0D14"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginHorizontal="26dp"
+            android:background="@drawable/bg_victory_card"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="⚡"
+                android:textSize="44sp" />
+
+            <TextView
+                android:id="@+id/tvUpdateTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="NEW UPDATE AVAILABLE!"
+                android:textColor="#38BDF8"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:id="@+id/tvUpdateMessage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="A new version of Dots &amp; Boxes has been launched on our website."
+                android:textColor="@color/text_light"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:layout_marginTop="8dp" />
+
+            <Button
+                android:id="@+id/btnUpdateNow"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:text="OPEN WEBSITE &amp; UPDATE"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:backgroundTint="@color/accent_blue"
+                android:layout_marginTop="20dp" />
+
+            <Button
+                android:id="@+id/btnUpdateLater"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="LATER"
+                android:textStyle="bold"
+                android:textColor="@color/text_light"
+                android:backgroundTint="#1E293B"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
     </FrameLayout>
 </FrameLayout>

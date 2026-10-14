@@ -8,17 +8,15 @@ data class LevelSpec(
     val playerCount: Int,
     val pointsPerBox: Int,
     val winBonus: Int,
-    val aiSkillLevel: Int // 1 to 30
+    val aiSkillLevel: Int
 )
 
 object LevelRepository {
     val levels: List<LevelSpec> = (1..30).map { lvl ->
+        // Starts at 5x5 from Level 1 as requested, scaling up to 5x7 and 5x8
         val (r, c) = when {
-            lvl <= 3 -> Pair(3, 3)
-            lvl <= 8 -> Pair(4, 4)
-            lvl <= 14 -> Pair(5, 4) // 4x5
-            lvl <= 20 -> Pair(5, 5)
-            lvl <= 25 -> Pair(7, 5) // 5x7
+            lvl <= 15 -> Pair(5, 5) // 5x5 default starting grid
+            lvl <= 23 -> Pair(7, 5) // 5x7
             else -> Pair(8, 5)      // 5x8
         }
         val pCount = when {
@@ -235,21 +233,18 @@ class GameEngine(
         }
         if (openMoves.isEmpty()) return null
 
-        // 1. Capture available boxes (scales with aiSkillLevel 1..30)
         val scoringMoves = openMoves.filter { boxesCompleted(it) > 0 }
         val captureChance = (0.55 + (aiSkillLevel * 0.02)).coerceAtMost(1.0)
         if (scoringMoves.isNotEmpty() && Math.random() <= captureChance) {
             return scoringMoves.maxByOrNull { boxesCompleted(it) }
         }
 
-        // 2. Play safe move that doesn't give away a 3rd side
         val safeMoves = openMoves.filter { !creates3rdSide(it) }
         val safeChance = (0.45 + (aiSkillLevel * 0.025)).coerceAtMost(1.0)
         if (safeMoves.isNotEmpty() && Math.random() <= safeChance) {
             return safeMoves.random()
         }
 
-        // 3. For higher levels (Level 12+), minimize chain sacrifice in endgame
         if (aiSkillLevel >= 12) {
             return openMoves.minByOrNull { simulateSacrificeChain(it) } ?: openMoves.random()
         }
