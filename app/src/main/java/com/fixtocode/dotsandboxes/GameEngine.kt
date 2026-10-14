@@ -40,12 +40,9 @@ class GameEngine(
     val wallPattern: WallPattern = WallPattern.NONE,
     val seed: Int = (rows * 31 + cols * 17)
 ) {
-    // null = empty, -1 = neutral pre-placed wall, >=0 = player ID
     val hLines = Array(rows + 1) { arrayOfNulls<Int>(cols) }
     val vLines = Array(rows) { arrayOfNulls<Int>(cols + 1) }
     val boxes = Array(rows) { arrayOfNulls<Int>(cols) }
-
-    // Value of each box: 1 (Normal), 2 (Gold 2X), 3 (Diamond 3X)
     val boxValues = Array(rows) { IntArray(cols) { 1 } }
 
     var currentPlayerIdx = 0
@@ -139,10 +136,6 @@ class GameEngine(
         turnStartTimeMillis = System.currentTimeMillis()
     }
 
-    /**
-     * Claims a line and returns the number of boxes closed (0, 1, or 2), or -1 if invalid.
-     * Player score increases by the sum of boxValues[r][c] of captured boxes.
-     */
     fun claimLine(isH: Boolean, r: Int, c: Int): Int {
         if (isH && hLines[r][c] != null) return -1
         if (!isH && vLines[r][c] != null) return -1
@@ -157,7 +150,10 @@ class GameEngine(
 
         if (isH) hLines[r][c] = p.id else vLines[r][c] = p.id
 
-        val (boxesClosed, pointsEarned) = evaluateBoxes(isH, r, c, p.id)
+        val eval = evaluateBoxes(isH, r, c, p.id)
+        val boxesClosed = eval.first
+        val pointsEarned = eval.second
+
         if (boxesClosed > 0) {
             p.score += pointsEarned
             currentComboStreak += boxesClosed
@@ -319,7 +315,6 @@ class GameEngine(
 
         val difficulty = getCurrentPlayer().botDifficulty
 
-        // TIER 1: EASY BOT
         if (difficulty == BotDifficulty.EASY) {
             val scoringMoves = openMoves.filter { pointsCompletedByMove(it) > 0 }
             if (scoringMoves.isNotEmpty() && Math.random() < 0.65) {
@@ -332,7 +327,6 @@ class GameEngine(
             return openMoves.random()
         }
 
-        // TIER 2: MEDIUM BOT
         if (difficulty == BotDifficulty.MEDIUM) {
             val scoringMoves = openMoves.filter { pointsCompletedByMove(it) > 0 }
             if (scoringMoves.isNotEmpty()) {
@@ -342,7 +336,6 @@ class GameEngine(
             return if (safeMoves.isNotEmpty()) safeMoves.random() else openMoves.random()
         }
 
-        // TIER 3: PRO AI (Hunts 3X/2X Boxes + Tempo Control + Minimax Value Sacrifice)
         val scoringMoves = openMoves.filter { pointsCompletedByMove(it) > 0 }
         if (scoringMoves.isNotEmpty()) {
             val maxPts = scoringMoves.maxOf { pointsCompletedByMove(it) }

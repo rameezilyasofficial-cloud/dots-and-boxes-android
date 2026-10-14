@@ -17,35 +17,29 @@ class MainActivity : AppCompatActivity() {
     private lateinit var configContainer: View
     private lateinit var arenaContainer: View
 
-    // Header Stats
     private lateinit var tvRankBadge: TextView
     private lateinit var tvTotalStars: TextView
     private lateinit var tvTotalCoins: TextView
 
-    // Mode Tabs & Sections
     private lateinit var btnTabCampaign: Button
     private lateinit var btnTabCustom: Button
     private lateinit var campaignSection: LinearLayout
     private lateinit var campaignLevelsContainer: LinearLayout
     private lateinit var customPlaySection: LinearLayout
 
-    // Custom Play Views
     private lateinit var gridOptionsLayout: LinearLayout
     private lateinit var playerCountTabsLayout: LinearLayout
     private lateinit var rosterLayout: LinearLayout
 
-    // Arena HUD Views
     private lateinit var tvArenaStageTitle: TextView
     private lateinit var tvTurnIndicator: TextView
     private lateinit var arenaScoresLayout: LinearLayout
     private lateinit var gameView: GameView
 
-    // Settings
     private lateinit var switchSound: Switch
     private lateinit var switchVibration: Switch
     private lateinit var switchSpeedAnalytics: Switch
 
-    // Victory Overlay Views
     private lateinit var winnerOverlay: FrameLayout
     private lateinit var tvWinnerStars: TextView
     private lateinit var tvWinnerTitle: TextView
@@ -57,11 +51,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnOverlaySettings: Button
 
     private val playerColors = intArrayOf(
-        0xFFEF4444.toInt(), // P1 Red
-        0xFFF59E0B.toInt(), // P2 Amber
-        0xFF06B6D4.toInt(), // P3 Cyan
-        0xFF10B981.toInt(), // P4 Green
-        0xFF8B5CF6.toInt()  // P5 Violet
+        0xFFEF4444.toInt(),
+        0xFFF59E0B.toInt(),
+        0xFF06B6D4.toInt(),
+        0xFF10B981.toInt(),
+        0xFF8B5CF6.toInt()
     )
 
     private var isCampaignMode = true
@@ -235,7 +229,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // Left Level Badge
             val badgeText = TextView(this).apply {
                 text = if (!isUnlocked) "🔒\nL${lvl.number}" else if (lvl.isBoss) "💀\nL${lvl.number}" else "L${lvl.number}"
                 setTextColor(if (lvl.isBoss) 0xFFEF4444.toInt() else if (isUnlocked) 0xFF38BDF8.toInt() else 0xFF475569.toInt())
@@ -245,7 +238,6 @@ class MainActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(88, LinearLayout.LayoutParams.WRAP_CONTENT)
             }
 
-            // Middle Info Column
             val infoCol = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
@@ -275,7 +267,6 @@ class MainActivity : AppCompatActivity() {
             infoCol.addView(titleTv)
             infoCol.addView(subTv)
 
-            // Right Stars / Play Button
             val rightCol = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.END
@@ -315,9 +306,7 @@ class MainActivity : AppCompatActivity() {
         activeCampaignLevel = lvl
 
         val campaignPlayers = mutableListOf<Player>()
-        // Human Player 1
         campaignPlayers.add(Player(0, "You", playerColors[0], BotDifficulty.NONE))
-        // Add Level Bots
         lvl.bots.forEachIndexed { idx, botPair ->
             val color = playerColors[(idx + 1) % playerColors.size]
             campaignPlayers.add(Player(idx + 1, botPair.first, color, botPair.second))
@@ -608,11 +597,14 @@ class MainActivity : AppCompatActivity() {
         if (isCampaignMode && lvl != null) {
             val humanWon = (winner.id == 0)
             if (humanWon) {
-                val (stars, coinsEarned) = campaignManager.recordVictory(
+                val rewardPair = campaignManager.recordVictory(
                     lvl,
                     winner.score,
                     eng.getTotalBoardPoints()
                 )
+                val stars = rewardPair.first
+                val coinsEarned = rewardPair.second
+
                 tvWinnerStars.text = when (stars) {
                     3 -> "⭐⭐⭐"
                     2 -> "⭐⭐☆"
@@ -620,10 +612,11 @@ class MainActivity : AppCompatActivity() {
                 }
                 tvWinnerTitle.text = "LEVEL ${lvl.number} CLEARED!"
                 tvWinnerTitle.setTextColor(0xFF10B981.toInt())
-                tvWinnerSubtitle.text = "🪙 +$coinsEarned Gold Coins  •  ${ campaignManager.getPlayerRankTitle() }"
+                val rankTitle = campaignManager.getPlayerRankTitle()
+                tvWinnerSubtitle.text = "🪙 +$coinsEarned Gold Coins  •  $rankTitle"
 
                 if (lvl.number < 30) {
-                    val nextLvl = campaignManager.levels[lvl.number] // index = lvl.number for next
+                    val nextLvl = campaignManager.levels[lvl.number]
                     btnOverlayPrimary.text = "NEXT: LEVEL ${nextLvl.number} ⏭"
                     btnOverlayPrimary.setOnClickListener {
                         triggerUiFeedback(it)
@@ -665,7 +658,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Render Standings
         winnerStatsLayout.removeAllViews()
         sorted.forEachIndexed { rank, p ->
             val item = LinearLayout(this).apply {
@@ -719,7 +711,6 @@ class MainActivity : AppCompatActivity() {
             winnerStatsLayout.addView(item)
         }
 
-        // Render Speed IQ Analytics
         winnerAnalyticsLayout.removeAllViews()
         val humanPlayers = eng.players.filter { !it.isBot }
         if (switchSpeedAnalytics.isChecked && humanPlayers.isNotEmpty()) {

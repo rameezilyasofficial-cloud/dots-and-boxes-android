@@ -80,7 +80,6 @@ class GameView @JvmOverloads constructor(
         val startX = (width - (cellSize * eng.cols)) / 2f
         val startY = (height - (cellSize * eng.rows)) / 2f
 
-        // 1. Draw Unclaimed Bonus Boxes (2X Gold & 3X Diamond) and Claimed Boxes
         for (r in 0 until eng.rows) {
             for (c in 0 until eng.cols) {
                 val ownerId = eng.boxes[r][c]
@@ -90,11 +89,10 @@ class GameView @JvmOverloads constructor(
                 val rect = RectF(left + 4f, top + 4f, left + cellSize - 4f, top + cellSize - 4f)
 
                 if (ownerId == null) {
-                    // Unclaimed Box: Show 2X Gold or 3X Diamond Objective!
                     if (bonusVal == 2) {
-                        boxFillPaint.color = 0x1AF59E0B
+                        boxFillPaint.color = 0x1AF59E0B.toInt()
                         canvas.drawRoundRect(rect, 10f, 10f, boxFillPaint)
-                        bonusStrokePaint.color = 0x66F59E0B
+                        bonusStrokePaint.color = 0x66F59E0B.toInt()
                         canvas.drawRoundRect(rect, 10f, 10f, bonusStrokePaint)
 
                         badgePaint.color = 0xFFF59E0B.toInt()
@@ -103,7 +101,7 @@ class GameView @JvmOverloads constructor(
                         val ty = top + (cellSize / 2f) - ((fm.descent + fm.ascent) / 2f)
                         canvas.drawText("★ 2X", left + (cellSize / 2f), ty, badgePaint)
                     } else if (bonusVal == 3) {
-                        boxFillPaint.color = 0x2238BDF8
+                        boxFillPaint.color = 0x2238BDF8.toInt()
                         canvas.drawRoundRect(rect, 10f, 10f, boxFillPaint)
                         bonusStrokePaint.color = 0x8838BDF8.toInt()
                         canvas.drawRoundRect(rect, 10f, 10f, bonusStrokePaint)
@@ -115,9 +113,8 @@ class GameView @JvmOverloads constructor(
                         canvas.drawText("💎 3X", left + (cellSize / 2f), ty, badgePaint)
                     }
                 } else {
-                    // Claimed Box
                     val p = eng.players.firstOrNull { it.id == ownerId } ?: continue
-                    boxFillPaint.color = (p.color and 0x00FFFFFF) or 0x33000000
+                    boxFillPaint.color = (p.color and 0x00FFFFFF) or 0x33000000.toInt()
                     canvas.drawRoundRect(rect, 10f, 10f, boxFillPaint)
 
                     val initialLetter = if (p.name.isNotBlank()) p.name.trim().take(1).uppercase() else "P"
@@ -137,7 +134,6 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 2. Horizontal Lines
         for (r in 0..eng.rows) {
             for (c in 0 until eng.cols) {
                 val ownerId = eng.hLines[r][c]
@@ -151,7 +147,7 @@ class GameView @JvmOverloads constructor(
                     val p = eng.players.firstOrNull { it.id == ownerId }
                     val lineColor = p?.color ?: 0xFF38BDF8.toInt()
                     if (lastPlacedIsH == true && lastPlacedR == r && lastPlacedC == c) {
-                        highlightGlowPaint.color = (lineColor and 0x00FFFFFF) or 0x55000000
+                        highlightGlowPaint.color = (lineColor and 0x00FFFFFF) or 0x55000000.toInt()
                         canvas.drawLine(x1, y, x2, y, highlightGlowPaint)
                     }
                     activeLinePaint.color = lineColor
@@ -162,7 +158,6 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 3. Vertical Lines
         for (r in 0 until eng.rows) {
             for (c in 0..eng.cols) {
                 val ownerId = eng.vLines[r][c]
@@ -176,7 +171,7 @@ class GameView @JvmOverloads constructor(
                     val p = eng.players.firstOrNull { it.id == ownerId }
                     val lineColor = p?.color ?: 0xFF38BDF8.toInt()
                     if (lastPlacedIsH == false && lastPlacedR == r && lastPlacedC == c) {
-                        highlightGlowPaint.color = (lineColor and 0x00FFFFFF) or 0x55000000
+                        highlightGlowPaint.color = (lineColor and 0x00FFFFFF) or 0x55000000.toInt()
                         canvas.drawLine(x, y1, x, y2, highlightGlowPaint)
                     }
                     activeLinePaint.color = lineColor
@@ -187,7 +182,6 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 4. Grid Pegs
         val dotRadius = min(11f, cellSize * 0.11f)
         for (r in 0..eng.rows) {
             for (c in 0..eng.cols) {

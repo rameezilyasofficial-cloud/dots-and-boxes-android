@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="@color/bg_primary">
 
-    <!-- WINDOW 1: MAIN LAUNCHER (CAMPAIGN & CUSTOM SETUP) -->
+    <!-- WINDOW 1: MAIN LAUNCHER -->
     <ScrollView
         android:id="@+id/configContainer"
         android:layout_width="match_parent"
@@ -18,7 +18,6 @@
             android:padding="18dp"
             android:gravity="center_horizontal">
 
-            <!-- Title -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -28,7 +27,6 @@
                 android:textStyle="bold"
                 android:letterSpacing="0.04" />
 
-            <!-- Player Rank, Stars & Coins Bar -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -68,7 +66,6 @@
                     android:textStyle="bold" />
             </LinearLayout>
 
-            <!-- Mode Selector Tabs (30-Level Campaign vs Custom Free Play) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="46dp"
@@ -96,7 +93,7 @@
                     android:layout_marginStart="4dp" />
             </LinearLayout>
 
-            <!-- SECTION A: 30-LEVEL CAMPAIGN MAP -->
+            <!-- SECTION A: CAMPAIGN -->
             <LinearLayout
                 android:id="@+id/campaignSection"
                 android:layout_width="match_parent"
@@ -120,7 +117,7 @@
                     android:layout_marginTop="8dp" />
             </LinearLayout>
 
-            <!-- SECTION B: CUSTOM FREE PLAY CONFIG -->
+            <!-- SECTION B: CUSTOM PLAY -->
             <LinearLayout
                 android:id="@+id/customPlaySection"
                 android:layout_width="match_parent"
@@ -201,7 +198,7 @@
                     android:layout_marginTop="18dp" />
             </LinearLayout>
 
-            <!-- GLOBAL SETTINGS CARD -->
+            <!-- SETTINGS -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -257,7 +254,6 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <!-- Top HUD -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
@@ -310,7 +306,6 @@
                 android:tint="@color/text_light" />
         </RelativeLayout>
 
-        <!-- Live Scoreboard Bar -->
         <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -325,14 +320,13 @@
                 android:paddingHorizontal="12dp" />
         </HorizontalScrollView>
 
-        <!-- Canvas Game Surface -->
         <com.fixtocode.dotsandboxes.GameView
             android:id="@+id/gameView"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
     </LinearLayout>
 
-    <!-- WINDOW 3: VICTORY / STAGE RESULT OVERLAY -->
+    <!-- WINDOW 3: VICTORY OVERLAY -->
     <FrameLayout
         android:id="@+id/winnerOverlay"
         android:layout_width="match_parent"
@@ -383,7 +377,6 @@
                     android:textStyle="bold"
                     android:layout_marginTop="4dp" />
 
-                <!-- Standings Section -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -400,7 +393,6 @@
                     android:orientation="vertical"
                     android:layout_marginTop="6dp" />
 
-                <!-- Speed IQ & Reaction Time Analytics Section -->
                 <TextView
                     android:id="@+id/tvAnalyticsHeading"
                     android:layout_width="match_parent"

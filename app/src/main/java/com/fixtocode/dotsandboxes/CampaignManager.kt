@@ -64,9 +64,6 @@ class CampaignManager(context: Context) {
         }
     }
 
-    /**
-     * Records level victory, calculates stars & coins earned, and unlocks next stage.
-     */
     fun recordVictory(level: CampaignLevel, playerScore: Int, totalBoardPoints: Int): Pair<Int, Int> {
         val share = if (totalBoardPoints > 0) playerScore.toDouble() / totalBoardPoints.toDouble() else 0.5
         val earnedStars = when {
@@ -96,7 +93,6 @@ class CampaignManager(context: Context) {
 
     private fun buildThirtyLevels(): List<CampaignLevel> {
         return listOf(
-            // WORLD 1: BOOTCAMP (Levels 1 - 5)
             CampaignLevel(1, "First Contact", "3x3 Warmup • +2X Gold Box", 3, 3,
                 listOf("Scout Bot" to BotDifficulty.EASY), 1, 0, WallPattern.NONE, 50),
             CampaignLevel(2, "Double Trouble", "3x3 Grid • Two 2X Gold Boxes", 3, 3,
@@ -108,7 +104,6 @@ class CampaignManager(context: Context) {
             CampaignLevel(5, "BOSS: Iron Guard", "4x4 Fortress • Medium Boss AI", 4, 4,
                 listOf("IRON GUARD" to BotDifficulty.MEDIUM), 3, 1, WallPattern.FORTRESS, 150, isBoss = true),
 
-            // WORLD 2: TACTICAL ARENA (Levels 6 - 10)
             CampaignLevel(6, "Triple Threat", "4x4 3-Player Chaos • 2X Boxes", 4, 4,
                 listOf("Bot Alpha" to BotDifficulty.EASY, "Bot Beta" to BotDifficulty.EASY), 3, 1, WallPattern.NONE, 100),
             CampaignLevel(7, "Bunker Buster", "4x5 Corner Bunkers • Tactical", 5, 4,
@@ -120,7 +115,6 @@ class CampaignManager(context: Context) {
             CampaignLevel(10, "BOSS: Cyber Stalker", "5x5 Cross Arena • Elite Boss", 5, 5,
                 listOf("CYBER STALKER" to BotDifficulty.MEDIUM), 4, 2, WallPattern.CENTER_CROSS, 220, isBoss = true),
 
-            // WORLD 3: HIGH VOLTAGE (Levels 11 - 15)
             CampaignLevel(11, "Pentagon Grid", "5x5 Open Warfare • High Value", 5, 5,
                 listOf("Volt AI" to BotDifficulty.MEDIUM), 4, 2, WallPattern.NONE, 150),
             CampaignLevel(12, "Three-Way Siege", "5x5 Fortress • 1v2 Medium AI", 5, 5,
@@ -132,7 +126,6 @@ class CampaignManager(context: Context) {
             CampaignLevel(15, "BOSS: Nexus Prime", "5x6 Pro AI • First Pro Boss", 6, 5,
                 listOf("NEXUS PRIME" to BotDifficulty.PRO), 4, 3, WallPattern.CORRIDOR, 300, isBoss = true),
 
-            // WORLD 4: OVERDRIVE (Levels 16 - 20)
             CampaignLevel(16, "Six Pack", "5x6 Grid • Pro AI Duel", 6, 5,
                 listOf("Razor AI" to BotDifficulty.PRO), 4, 2, WallPattern.NONE, 210),
             CampaignLevel(17, "Divided Kingdom", "5x6 Cross Wall • 1v2 Battle", 6, 5,
@@ -144,7 +137,6 @@ class CampaignManager(context: Context) {
             CampaignLevel(20, "BOSS: Shadow Weaver", "5x7 Bunkers • Pro Mastermind", 7, 5,
                 listOf("SHADOW WEAVER" to BotDifficulty.PRO), 5, 4, WallPattern.CORNERS, 400, isBoss = true),
 
-            // WORLD 5: GRANDMASTER TRIALS (Levels 21 - 25)
             CampaignLevel(21, "Seven Pillars", "5x7 Pro Duel • Minimax Logic", 7, 5,
                 listOf("Oracle AI" to BotDifficulty.PRO), 6, 3, WallPattern.NONE, 280),
             CampaignLevel(22, "Twin Assassins", "5x7 Fortress • Two Pro Bots", 7, 5,
@@ -156,7 +148,6 @@ class CampaignManager(context: Context) {
             CampaignLevel(25, "BOSS: Quantum Cortex", "5x8 Corridor • Twin Pro Bosses", 8, 5,
                 listOf("QUANTUM" to BotDifficulty.PRO, "CORTEX" to BotDifficulty.PRO), 6, 5, WallPattern.CORRIDOR, 500, isBoss = true),
 
-            // WORLD 6: SILICON VALLEY LEGENDS (Levels 26 - 30)
             CampaignLevel(26, "Zero Margin", "5x8 Pure Pro 1v1 • 8x Diamonds", 8, 5,
                 listOf("DeepGrid AI" to BotDifficulty.PRO), 4, 8, WallPattern.CORNERS, 400),
             CampaignLevel(27, "Triad Syndicate", "5x8 Cross • Three Pro Bots", 8, 5,
