@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:background="@color/bg_primary">
 
-    <!-- WINDOW 1: CONFIGURATION SCREEN -->
+    <!-- WINDOW 1: MAIN LAUNCHER (CAMPAIGN & CUSTOM SETUP) -->
     <ScrollView
         android:id="@+id/configContainer"
         android:layout_width="match_parent"
@@ -15,91 +15,200 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="20dp"
+            android:padding="18dp"
             android:gravity="center_horizontal">
 
+            <!-- Title -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="DOTS &amp; BOXES"
+                android:text="DOTS &amp; BOXES PRO"
                 android:textColor="@color/accent_blue"
-                android:textSize="26sp"
+                android:textSize="24sp"
                 android:textStyle="bold"
                 android:letterSpacing="0.04" />
 
-            <TextView
-                android:id="@+id/tvDeviceType"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="DETECTING HARDWARE..."
-                android:textColor="@color/text_muted"
-                android:textSize="12sp"
-                android:layout_marginTop="2dp" />
-
-            <!-- Grid Matrix Options -->
-            <TextView
+            <!-- Player Rank, Stars & Coins Bar -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="GRID RATIO (UP TO 5x8)"
-                android:textColor="@color/text_light"
-                android:textStyle="bold"
-                android:textSize="13sp"
-                android:layout_marginTop="22dp" />
+                android:orientation="horizontal"
+                android:background="#121824"
+                android:padding="10dp"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical">
 
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:scrollbars="none">
-                <LinearLayout
-                    android:id="@+id/gridOptionsLayout"
+                <TextView
+                    android:id="@+id/tvRankBadge"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="🌱 ROOKIE STRIKER"
+                    android:textColor="#F8FAFC"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvTotalStars"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-            </HorizontalScrollView>
+                    android:text="⭐ 0/90"
+                    android:textColor="#F59E0B"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="14dp" />
 
-            <!-- Quick Player Count Selector -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="NUMBER OF PLAYERS"
-                android:textColor="@color/text_light"
-                android:textStyle="bold"
-                android:textSize="13sp"
-                android:layout_marginTop="18dp" />
+                <TextView
+                    android:id="@+id/tvTotalCoins"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🪙 100"
+                    android:textColor="#10B981"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
+            <!-- Mode Selector Tabs (30-Level Campaign vs Custom Free Play) -->
             <LinearLayout
-                android:id="@+id/playerCountTabsLayout"
                 android:layout_width="match_parent"
                 android:layout_height="46dp"
                 android:orientation="horizontal"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="14dp">
 
-            <!-- Roster Configuration List -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="ROSTER CONFIGURATION"
-                android:textColor="@color/text_light"
-                android:textStyle="bold"
-                android:textSize="13sp"
-                android:layout_marginTop="18dp" />
+                <Button
+                    android:id="@+id/btnTabCampaign"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="🏆 30-LVL CAMPAIGN"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="4dp" />
 
+                <Button
+                    android:id="@+id/btnTabCustom"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="⚔️ CUSTOM PLAY"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:layout_marginStart="4dp" />
+            </LinearLayout>
+
+            <!-- SECTION A: 30-LEVEL CAMPAIGN MAP -->
             <LinearLayout
-                android:id="@+id/rosterLayout"
+                android:id="@+id/campaignSection"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginTop="8dp" />
+                android:layout_marginTop="14dp">
 
-            <!-- SETTINGS & ANALYTICS CARD -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="SELECT CAMPAIGN STAGE (TAP UNLOCKED LEVEL TO PLAY)"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/campaignLevelsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="8dp" />
+            </LinearLayout>
+
+            <!-- SECTION B: CUSTOM FREE PLAY CONFIG -->
+            <LinearLayout
+                android:id="@+id/customPlaySection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                android:layout_marginTop="14dp">
+
+                <TextView
+                    android:id="@+id/tvDeviceType"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="SMARTPHONE DISPLAY OPTIMIZED"
+                    android:textColor="@color/text_muted"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="GRID RATIO (UP TO 5x8)"
+                    android:textColor="@color/text_light"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:layout_marginTop="12dp" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:scrollbars="none">
+                    <LinearLayout
+                        android:id="@+id/gridOptionsLayout"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="NUMBER OF PLAYERS"
+                    android:textColor="@color/text_light"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:layout_marginTop="16dp" />
+
+                <LinearLayout
+                    android:id="@+id/playerCountTabsLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="6dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="ROSTER &amp; AI DIFFICULTY (TAP BADGE TO CYCLE)"
+                    android:textColor="@color/text_light"
+                    android:textStyle="bold"
+                    android:textSize="12sp"
+                    android:layout_marginTop="16dp" />
+
+                <LinearLayout
+                    android:id="@+id/rosterLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="6dp" />
+
+                <Button
+                    android:id="@+id/btnStartMatch"
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:text="LAUNCH CUSTOM MATCH"
+                    android:textStyle="bold"
+                    android:textColor="#000000"
+                    android:backgroundTint="@color/accent_blue"
+                    android:layout_marginTop="18dp" />
+            </LinearLayout>
+
+            <!-- GLOBAL SETTINGS CARD -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="SETTINGS &amp; SPEED IQ ANALYTICS"
+                android:text="AUDIO, HAPTICS &amp; SPEED IQ SETTINGS"
                 android:textColor="@color/text_light"
                 android:textStyle="bold"
-                android:textSize="13sp"
+                android:textSize="12sp"
                 android:layout_marginTop="20dp" />
 
             <LinearLayout
@@ -108,13 +217,13 @@
                 android:orientation="vertical"
                 android:background="#121824"
                 android:padding="12dp"
-                android:layout_marginTop="8dp">
+                android:layout_marginTop="6dp">
 
                 <Switch
                     android:id="@+id/switchSound"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Sound Effects (Audio FX)"
+                    android:text="Polyphonic Synth Audio FX"
                     android:textColor="@color/text_light"
                     android:checked="true"
                     android:paddingVertical="4dp" />
@@ -123,7 +232,7 @@
                     android:id="@+id/switchVibration"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Vibration (Haptic Tap)"
+                    android:text="HD Waveform Haptic Feedback"
                     android:textColor="@color/text_light"
                     android:checked="true"
                     android:paddingVertical="4dp" />
@@ -137,16 +246,6 @@
                     android:checked="true"
                     android:paddingVertical="4dp" />
             </LinearLayout>
-
-            <Button
-                android:id="@+id/btnStartMatch"
-                android:layout_width="match_parent"
-                android:layout_height="52dp"
-                android:text="START GAME"
-                android:textStyle="bold"
-                android:textColor="#000000"
-                android:backgroundTint="@color/accent_blue"
-                android:layout_marginTop="24dp" />
         </LinearLayout>
     </ScrollView>
 
@@ -162,7 +261,7 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:paddingHorizontal="16dp"
+            android:paddingHorizontal="14dp"
             android:background="@color/bg_card">
 
             <ImageButton
@@ -174,15 +273,31 @@
                 android:src="@android:drawable/ic_menu_revert"
                 android:tint="@color/text_light" />
 
-            <TextView
-                android:id="@+id/tvTurnIndicator"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_centerInParent="true"
-                android:text="Player 1's Turn"
-                android:textColor="@color/text_light"
-                android:textStyle="bold"
-                android:textSize="15sp" />
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <TextView
+                    android:id="@+id/tvArenaStageTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LEVEL 1 • FIRST CONTACT"
+                    android:textColor="@color/text_muted"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvTurnIndicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Player 1's Turn"
+                    android:textColor="@color/text_light"
+                    android:textStyle="bold"
+                    android:textSize="14sp" />
+            </LinearLayout>
 
             <ImageButton
                 android:id="@+id/btnResetMatch"
@@ -217,7 +332,7 @@
             android:layout_height="match_parent" />
     </LinearLayout>
 
-    <!-- WINDOW 3: VICTORY POPUP OVERLAY -->
+    <!-- WINDOW 3: VICTORY / STAGE RESULT OVERLAY -->
     <FrameLayout
         android:id="@+id/winnerOverlay"
         android:layout_width="match_parent"
@@ -235,36 +350,38 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="24dp"
+                android:layout_marginHorizontal="22dp"
                 android:background="@drawable/bg_victory_card"
                 android:orientation="vertical"
                 android:padding="22dp"
                 android:gravity="center_horizontal">
 
                 <TextView
+                    android:id="@+id/tvWinnerStars"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🏆"
-                    android:textSize="44sp" />
+                    android:text="⭐⭐⭐"
+                    android:textSize="34sp" />
 
                 <TextView
                     android:id="@+id/tvWinnerTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="PLAYER 1 WINS!"
+                    android:text="STAGE CLEARED!"
                     android:textColor="#38BDF8"
                     android:textSize="22sp"
                     android:textStyle="bold"
-                    android:layout_marginTop="6dp" />
+                    android:layout_marginTop="4dp" />
 
                 <TextView
                     android:id="@+id/tvWinnerSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Dominated the grid"
-                    android:textColor="@color/text_muted"
-                    android:textSize="12sp"
-                    android:layout_marginTop="2dp" />
+                    android:text="+125 Coins Earned"
+                    android:textColor="#F59E0B"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="4dp" />
 
                 <!-- Standings Section -->
                 <TextView
@@ -302,10 +419,10 @@
                     android:layout_marginTop="6dp" />
 
                 <Button
-                    android:id="@+id/btnOverlayPlayAgain"
+                    android:id="@+id/btnOverlayPrimary"
                     android:layout_width="match_parent"
                     android:layout_height="50dp"
-                    android:text="PLAY AGAIN"
+                    android:text="NEXT LEVEL ⏭"
                     android:textStyle="bold"
                     android:textColor="#000000"
                     android:backgroundTint="@color/accent_blue"
@@ -315,7 +432,7 @@
                     android:id="@+id/btnOverlaySettings"
                     android:layout_width="match_parent"
                     android:layout_height="44dp"
-                    android:text="CHANGE SETTINGS"
+                    android:text="BACK TO MENU"
                     android:textStyle="bold"
                     android:textColor="@color/text_light"
                     android:backgroundTint="#1E293B"
