@@ -1,16 +1,52 @@
 package com.fixtocode.dotsandboxes
 
-import kotlin.random.Random
+data class LevelSpec(
+    val number: Int,
+    val title: String,
+    val rows: Int,
+    val cols: Int,
+    val playerCount: Int,
+    val pointsPerBox: Int,
+    val winBonus: Int,
+    val aiSkillLevel: Int // 1 to 30
+)
 
-enum class BotDifficulty(val label: String, val badgeColor: Int) {
-    NONE("👤 HUMAN", 0xFF1E293B.toInt()),
-    EASY("🤖 EASY", 0xFF065F46.toInt()),
-    MEDIUM("🤖 MED", 0xFF4C1D95.toInt()),
-    PRO("🔥 PRO AI", 0xFF991B1B.toInt());
-
-    fun next(): BotDifficulty {
-        val vals = values()
-        return vals[(ordinal + 1) % vals.size]
+object LevelRepository {
+    val levels: List<LevelSpec> = (1..30).map { lvl ->
+        val (r, c) = when {
+            lvl <= 3 -> Pair(3, 3)
+            lvl <= 8 -> Pair(4, 4)
+            lvl <= 14 -> Pair(5, 4) // 4x5
+            lvl <= 20 -> Pair(5, 5)
+            lvl <= 25 -> Pair(7, 5) // 5x7
+            else -> Pair(8, 5)      // 5x8
+        }
+        val pCount = when {
+            lvl in listOf(6, 12, 18, 24) -> 3
+            lvl in listOf(14, 22, 28) -> 4
+            lvl in listOf(20, 29, 30) -> 5
+            else -> 2
+        }
+        val title = when (lvl) {
+            1 -> "Rookie Start"
+            5 -> "Boss: Iron Grid"
+            10 -> "Boss: Cyber Core"
+            15 -> "Boss: Nexus AI"
+            20 -> "Boss: Penta War"
+            25 -> "Boss: Deep Matrix"
+            30 -> "Final Boss: Omega"
+            else -> "Stage $lvl"
+        }
+        LevelSpec(
+            number = lvl,
+            title = title,
+            rows = r,
+            cols = c,
+            playerCount = pCount,
+            pointsPerBox = lvl * 10,
+            winBonus = lvl * 50,
+            aiSkillLevel = lvl
+        )
     }
 }
 
@@ -18,14 +54,12 @@ data class Player(
     val id: Int,
     var name: String,
     val color: Int,
-    var botDifficulty: BotDifficulty = BotDifficulty.NONE,
+    var isBot: Boolean = false,
     var score: Int = 0,
+    var boxesCount: Int = 0,
     var totalTimeMillis: Long = 0L,
     var movesCount: Int = 0
 ) {
-    val isBot: Boolean
-        get() = botDifficulty != BotDifficulty.NONE
-
     fun getAverageResponseSec(): Double {
         return if (movesCount > 0) (totalTimeMillis / 1000.0) / movesCount else 0.0
     }
@@ -35,100 +69,16 @@ class GameEngine(
     val rows: Int,
     val cols: Int,
     val players: List<Player>,
-    val gold2xCount: Int = 0,
-    val diamond3xCount: Int = 0,
-    val wallPattern: WallPattern = WallPattern.NONE,
-    val seed: Int = (rows * 31 + cols * 17)
+    val pointsPerBox: Int = 1,
+    val aiSkillLevel: Int = 15
 ) {
     val hLines = Array(rows + 1) { arrayOfNulls<Int>(cols) }
     val vLines = Array(rows) { arrayOfNulls<Int>(cols + 1) }
     val boxes = Array(rows) { arrayOfNulls<Int>(cols) }
-    val boxValues = Array(rows) { IntArray(cols) { 1 } }
 
     var currentPlayerIdx = 0
     var isGameOver = false
-    var currentComboStreak = 0
     var turnStartTimeMillis: Long = System.currentTimeMillis()
-
-    init {
-        setupBonusBoxes()
-        applyWallPattern()
-    }
-
-    private fun setupBonusBoxes() {
-        val coords = mutableListOf<Pair<Int, Int>>()
-        for (r in 0 until rows) {
-            for (c in 0 until cols) {
-                coords.add(Pair(r, c))
-            }
-        }
-        coords.shuffle(Random(seed))
-
-        var idx = 0
-        for (i in 0 until diamond3xCount) {
-            if (idx < coords.size) {
-                val (r, c) = coords[idx++]
-                boxValues[r][c] = 3
-            }
-        }
-        for (i in 0 until gold2xCount) {
-            if (idx < coords.size) {
-                val (r, c) = coords[idx++]
-                boxValues[r][c] = 2
-            }
-        }
-    }
-
-    private fun applyWallPattern() {
-        val midR = rows / 2
-        val midC = cols / 2
-
-        when (wallPattern) {
-            WallPattern.NONE -> {}
-            WallPattern.CENTER_CROSS -> {
-                if (cols >= 3) {
-                    hLines[midR][midC] = -1
-                    if (midC > 0) hLines[midR][midC - 1] = -1
-                }
-                if (rows >= 3) {
-                    vLines[midR][midC] = -1
-                    if (midR > 0) vLines[midR - 1][midC] = -1
-                }
-            }
-            WallPattern.CORNERS -> {
-                hLines[1][0] = -1
-                hLines[1][cols - 1] = -1
-                hLines[rows - 1][0] = -1
-                hLines[rows - 1][cols - 1] = -1
-            }
-            WallPattern.CORRIDOR -> {
-                for (r in 1 until rows - 1) {
-                    if (r % 2 == 1 && cols >= 4) {
-                        vLines[r][1] = -1
-                        vLines[r][cols - 1] = -1
-                    }
-                }
-            }
-            WallPattern.FORTRESS -> {
-                if (rows >= 4 && cols >= 4) {
-                    hLines[1][midC] = -1
-                    hLines[rows - 1][midC] = -1
-                    vLines[midR][1] = -1
-                    vLines[midR][cols - 1] = -1
-                }
-            }
-        }
-    }
-
-    fun getTotalBoardPoints(): Int {
-        var total = 0
-        for (r in 0 until rows) {
-            for (c in 0 until cols) {
-                total += boxValues[r][c]
-            }
-        }
-        return total
-    }
 
     fun getCurrentPlayer(): Player = players[currentPlayerIdx]
 
@@ -150,30 +100,24 @@ class GameEngine(
 
         if (isH) hLines[r][c] = p.id else vLines[r][c] = p.id
 
-        val eval = evaluateBoxes(isH, r, c, p.id)
-        val boxesClosed = eval.first
-        val pointsEarned = eval.second
-
-        if (boxesClosed > 0) {
-            p.score += pointsEarned
-            currentComboStreak += boxesClosed
+        val captured = evaluateBoxes(isH, r, c, p.id)
+        if (captured > 0) {
+            p.boxesCount += captured
+            p.score += (captured * pointsPerBox)
             if (checkBoardFull()) {
                 isGameOver = true
             } else {
                 startTurnClock()
             }
         } else {
-            currentComboStreak = 0
             currentPlayerIdx = (currentPlayerIdx + 1) % players.size
             startTurnClock()
         }
-        return boxesClosed
+        return captured
     }
 
-    private fun evaluateBoxes(isH: Boolean, r: Int, c: Int, playerId: Int): Pair<Int, Int> {
-        var closedCount = 0
-        var pointsEarned = 0
-
+    private fun evaluateBoxes(isH: Boolean, r: Int, c: Int, playerId: Int): Int {
+        var count = 0
         fun isClosed(row: Int, col: Int): Boolean {
             return hLines[row][col] != null &&
                    hLines[row + 1][col] != null &&
@@ -184,27 +128,23 @@ class GameEngine(
         if (isH) {
             if (r > 0 && boxes[r - 1][c] == null && isClosed(r - 1, c)) {
                 boxes[r - 1][c] = playerId
-                closedCount++
-                pointsEarned += boxValues[r - 1][c]
+                count++
             }
             if (r < rows && boxes[r][c] == null && isClosed(r, c)) {
                 boxes[r][c] = playerId
-                closedCount++
-                pointsEarned += boxValues[r][c]
+                count++
             }
         } else {
             if (c > 0 && boxes[r][c - 1] == null && isClosed(r, c - 1)) {
                 boxes[r][c - 1] = playerId
-                closedCount++
-                pointsEarned += boxValues[r][c - 1]
+                count++
             }
             if (c < cols && boxes[r][c] == null && isClosed(r, c)) {
                 boxes[r][c] = playerId
-                closedCount++
-                pointsEarned += boxValues[r][c]
+                count++
             }
         }
-        return Pair(closedCount, pointsEarned)
+        return count
     }
 
     private fun checkBoardFull(): Boolean {
@@ -218,7 +158,7 @@ class GameEngine(
 
     data class Move(val isH: Boolean, val r: Int, val c: Int)
 
-    private fun countBoxSides(r: Int, c: Int): Int {
+    private fun countSides(r: Int, c: Int): Int {
         var count = 0
         if (hLines[r][c] != null) count++
         if (hLines[r + 1][c] != null) count++
@@ -227,76 +167,58 @@ class GameEngine(
         return count
     }
 
-    private fun pointsCompletedByMove(m: Move): Int {
-        var pts = 0
+    private fun boxesCompleted(m: Move): Int {
+        var c = 0
         if (m.isH) {
-            if (m.r > 0 && countBoxSides(m.r - 1, m.c) == 3) pts += boxValues[m.r - 1][m.c]
-            if (m.r < rows && countBoxSides(m.r, m.c) == 3) pts += boxValues[m.r][m.c]
+            if (m.r > 0 && countSides(m.r - 1, m.c) == 3) c++
+            if (m.r < rows && countSides(m.r, m.c) == 3) c++
         } else {
-            if (m.c > 0 && countBoxSides(m.r, m.c - 1) == 3) pts += boxValues[m.r][m.c - 1]
-            if (m.c < cols && countBoxSides(m.r, m.c) == 3) pts += boxValues[m.r][m.c]
+            if (m.c > 0 && countSides(m.r, m.c - 1) == 3) c++
+            if (m.c < cols && countSides(m.r, m.c) == 3) c++
         }
-        return pts
+        return c
     }
 
-    private fun moveCreatesThirdSide(m: Move): Boolean {
+    private fun creates3rdSide(m: Move): Boolean {
         return if (m.isH) {
-            (m.r > 0 && countBoxSides(m.r - 1, m.c) == 2) ||
-            (m.r < rows && countBoxSides(m.r, m.c) == 2)
+            (m.r > 0 && countSides(m.r - 1, m.c) == 2) ||
+            (m.r < rows && countSides(m.r, m.c) == 2)
         } else {
-            (m.c > 0 && countBoxSides(m.r, m.c - 1) == 2) ||
-            (m.c < cols && countBoxSides(m.r, m.c) == 2)
+            (m.c > 0 && countSides(m.r, m.c - 1) == 2) ||
+            (m.c < cols && countSides(m.r, m.c) == 2)
         }
     }
 
-    private fun maxAdjacentSidesBeforeMove(m: Move): Int {
-        return if (m.isH) {
-            val top = if (m.r > 0) countBoxSides(m.r - 1, m.c) else 0
-            val bot = if (m.r < rows) countBoxSides(m.r, m.c) else 0
-            maxOf(top, bot)
-        } else {
-            val left = if (m.c > 0) countBoxSides(m.r, m.c - 1) else 0
-            val right = if (m.c < cols) countBoxSides(m.r, m.c) else 0
-            maxOf(left, right)
-        }
-    }
-
-    private fun simulateOpponentChainPoints(candidate: Move): Int {
+    private fun simulateSacrificeChain(candidate: Move): Int {
         val simH = Array(rows + 1) { r -> BooleanArray(cols) { c -> hLines[r][c] != null } }
         val simV = Array(rows) { r -> BooleanArray(cols + 1) { c -> vLines[r][c] != null } }
 
-        if (candidate.isH) {
-            simH[candidate.r][candidate.c] = true
-        } else {
-            simV[candidate.r][candidate.c] = true
-        }
+        if (candidate.isH) simH[candidate.r][candidate.c] = true
+        else simV[candidate.r][candidate.c] = true
 
-        var sacrificedPoints = 0
-        var foundCapturableBox = true
-
-        while (foundCapturableBox) {
-            foundCapturableBox = false
+        var chain = 0
+        var found = true
+        while (found) {
+            found = false
             for (r in 0 until rows) {
                 for (c in 0 until cols) {
-                    var sides = 0
-                    if (simH[r][c]) sides++
-                    if (simH[r + 1][c]) sides++
-                    if (simV[r][c]) sides++
-                    if (simV[r][c + 1]) sides++
-
-                    if (sides == 3) {
+                    var s = 0
+                    if (simH[r][c]) s++
+                    if (simH[r + 1][c]) s++
+                    if (simV[r][c]) s++
+                    if (simV[r][c + 1]) s++
+                    if (s == 3) {
                         if (!simH[r][c]) simH[r][c] = true
                         else if (!simH[r + 1][c]) simH[r + 1][c] = true
                         else if (!simV[r][c]) simV[r][c] = true
                         else if (!simV[r][c + 1]) simV[r][c + 1] = true
-
-                        sacrificedPoints += boxValues[r][c]
-                        foundCapturableBox = true
+                        chain++
+                        found = true
                     }
                 }
             }
         }
-        return sacrificedPoints
+        return chain
     }
 
     fun calculateBotMove(): Move? {
@@ -313,60 +235,25 @@ class GameEngine(
         }
         if (openMoves.isEmpty()) return null
 
-        val difficulty = getCurrentPlayer().botDifficulty
-
-        if (difficulty == BotDifficulty.EASY) {
-            val scoringMoves = openMoves.filter { pointsCompletedByMove(it) > 0 }
-            if (scoringMoves.isNotEmpty() && Math.random() < 0.65) {
-                return scoringMoves.random()
-            }
-            val safeMoves = openMoves.filter { !moveCreatesThirdSide(it) }
-            if (safeMoves.isNotEmpty() && Math.random() < 0.55) {
-                return safeMoves.random()
-            }
-            return openMoves.random()
+        // 1. Capture available boxes (scales with aiSkillLevel 1..30)
+        val scoringMoves = openMoves.filter { boxesCompleted(it) > 0 }
+        val captureChance = (0.55 + (aiSkillLevel * 0.02)).coerceAtMost(1.0)
+        if (scoringMoves.isNotEmpty() && Math.random() <= captureChance) {
+            return scoringMoves.maxByOrNull { boxesCompleted(it) }
         }
 
-        if (difficulty == BotDifficulty.MEDIUM) {
-            val scoringMoves = openMoves.filter { pointsCompletedByMove(it) > 0 }
-            if (scoringMoves.isNotEmpty()) {
-                return scoringMoves.maxByOrNull { pointsCompletedByMove(it) }
-            }
-            val safeMoves = openMoves.filter { !moveCreatesThirdSide(it) }
-            return if (safeMoves.isNotEmpty()) safeMoves.random() else openMoves.random()
+        // 2. Play safe move that doesn't give away a 3rd side
+        val safeMoves = openMoves.filter { !creates3rdSide(it) }
+        val safeChance = (0.45 + (aiSkillLevel * 0.025)).coerceAtMost(1.0)
+        if (safeMoves.isNotEmpty() && Math.random() <= safeChance) {
+            return safeMoves.random()
         }
 
-        val scoringMoves = openMoves.filter { pointsCompletedByMove(it) > 0 }
-        if (scoringMoves.isNotEmpty()) {
-            val maxPts = scoringMoves.maxOf { pointsCompletedByMove(it) }
-            return scoringMoves.filter { pointsCompletedByMove(it) == maxPts }.random()
+        // 3. For higher levels (Level 12+), minimize chain sacrifice in endgame
+        if (aiSkillLevel >= 12) {
+            return openMoves.minByOrNull { simulateSacrificeChain(it) } ?: openMoves.random()
         }
 
-        val safeMoves = openMoves.filter { !moveCreatesThirdSide(it) }
-        if (safeMoves.isNotEmpty()) {
-            val minAdjacentSides = safeMoves.minOf { maxAdjacentSidesBeforeMove(it) }
-            val optimalSafeMoves = safeMoves.filter { maxAdjacentSidesBeforeMove(it) == minAdjacentSides }
-            return optimalSafeMoves.random()
-        }
-
-        var minSacrificePts = Int.MAX_VALUE
-        val bestSacrificeCandidates = mutableListOf<Move>()
-
-        for (candidate in openMoves) {
-            val chainCost = simulateOpponentChainPoints(candidate)
-            if (chainCost < minSacrificePts) {
-                minSacrificePts = chainCost
-                bestSacrificeCandidates.clear()
-                bestSacrificeCandidates.add(candidate)
-            } else if (chainCost == minSacrificePts) {
-                bestSacrificeCandidates.add(candidate)
-            }
-        }
-
-        return if (bestSacrificeCandidates.isNotEmpty()) {
-            bestSacrificeCandidates.random()
-        } else {
-            openMoves.random()
-        }
+        return openMoves.random()
     }
 }

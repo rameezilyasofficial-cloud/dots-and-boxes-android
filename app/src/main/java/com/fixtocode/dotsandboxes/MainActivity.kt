@@ -1,10 +1,11 @@
 package com.fixtocode.dotsandboxes
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -12,84 +13,65 @@ import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var campaignManager: CampaignManager
+    private lateinit var prefs: SharedPreferences
 
     private lateinit var configContainer: View
     private lateinit var arenaContainer: View
-
-    private lateinit var tvRankBadge: TextView
-    private lateinit var tvTotalStars: TextView
-    private lateinit var tvTotalCoins: TextView
-
-    private lateinit var btnTabCampaign: Button
-    private lateinit var btnTabCustom: Button
-    private lateinit var campaignSection: LinearLayout
-    private lateinit var campaignLevelsContainer: LinearLayout
-    private lateinit var customPlaySection: LinearLayout
-
+    private lateinit var levelOptionsLayout: LinearLayout
+    private lateinit var tvLevelInfo: TextView
+    private lateinit var tvTotalBank: TextView
     private lateinit var gridOptionsLayout: LinearLayout
     private lateinit var playerCountTabsLayout: LinearLayout
     private lateinit var rosterLayout: LinearLayout
-
-    private lateinit var tvArenaStageTitle: TextView
     private lateinit var tvTurnIndicator: TextView
     private lateinit var arenaScoresLayout: LinearLayout
     private lateinit var gameView: GameView
 
+    // Settings
     private lateinit var switchSound: Switch
     private lateinit var switchVibration: Switch
     private lateinit var switchSpeedAnalytics: Switch
 
+    // Victory Screen Overlay Views
     private lateinit var winnerOverlay: FrameLayout
-    private lateinit var tvWinnerStars: TextView
     private lateinit var tvWinnerTitle: TextView
     private lateinit var tvWinnerSubtitle: TextView
     private lateinit var winnerStatsLayout: LinearLayout
     private lateinit var tvAnalyticsHeading: TextView
     private lateinit var winnerAnalyticsLayout: LinearLayout
-    private lateinit var btnOverlayPrimary: Button
+    private lateinit var btnOverlayPlayAgain: Button
     private lateinit var btnOverlaySettings: Button
 
     private val playerColors = intArrayOf(
-        0xFFEF4444.toInt(),
-        0xFFF59E0B.toInt(),
-        0xFF06B6D4.toInt(),
-        0xFF10B981.toInt(),
-        0xFF8B5CF6.toInt()
+        0xFFEF4444.toInt(), // P1 Red
+        0xFFF59E0B.toInt(), // P2 Amber
+        0xFF06B6D4.toInt(), // P3 Cyan
+        0xFF10B981.toInt(), // P4 Green
+        0xFF8B5CF6.toInt()  // P5 Violet
     )
 
-    private var isCampaignMode = true
-    private var activeCampaignLevel: CampaignLevel? = null
-
-    private var selectedRows = 4
-    private var selectedCols = 4
+    private var selectedLevel: Int = 1
+    private var selectedRows = 3
+    private var selectedCols = 3
     private var playerCount = 2
     private val activePlayers = mutableListOf<Player>()
+    private var gridPresets: List<Pair<String, Pair<Int, Int>>> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        campaignManager = CampaignManager(this)
+        prefs = getSharedPreferences("dots_boxes_progress", Context.MODE_PRIVATE)
+        selectedLevel = getUnlockedLevel()
 
         configContainer = findViewById(R.id.configContainer)
         arenaContainer = findViewById(R.id.arenaContainer)
-
-        tvRankBadge = findViewById(R.id.tvRankBadge)
-        tvTotalStars = findViewById(R.id.tvTotalStars)
-        tvTotalCoins = findViewById(R.id.tvTotalCoins)
-
-        btnTabCampaign = findViewById(R.id.btnTabCampaign)
-        btnTabCustom = findViewById(R.id.btnTabCustom)
-        campaignSection = findViewById(R.id.campaignSection)
-        campaignLevelsContainer = findViewById(R.id.campaignLevelsContainer)
-        customPlaySection = findViewById(R.id.customPlaySection)
-
+        levelOptionsLayout = findViewById(R.id.levelOptionsLayout)
+        tvLevelInfo = findViewById(R.id.tvLevelInfo)
+        tvTotalBank = findViewById(R.id.tvTotalBank)
         gridOptionsLayout = findViewById(R.id.gridOptionsLayout)
         playerCountTabsLayout = findViewById(R.id.playerCountTabsLayout)
         rosterLayout = findViewById(R.id.rosterLayout)
-
-        tvArenaStageTitle = findViewById(R.id.tvArenaStageTitle)
         tvTurnIndicator = findViewById(R.id.tvTurnIndicator)
         arenaScoresLayout = findViewById(R.id.arenaScoresLayout)
         gameView = findViewById(R.id.gameView)
@@ -99,62 +81,28 @@ class MainActivity : AppCompatActivity() {
         switchSpeedAnalytics = findViewById(R.id.switchSpeedAnalytics)
 
         winnerOverlay = findViewById(R.id.winnerOverlay)
-        tvWinnerStars = findViewById(R.id.tvWinnerStars)
         tvWinnerTitle = findViewById(R.id.tvWinnerTitle)
         tvWinnerSubtitle = findViewById(R.id.tvWinnerSubtitle)
         winnerStatsLayout = findViewById(R.id.winnerStatsLayout)
         tvAnalyticsHeading = findViewById(R.id.tvAnalyticsHeading)
         winnerAnalyticsLayout = findViewById(R.id.winnerAnalyticsLayout)
-        btnOverlayPrimary = findViewById(R.id.btnOverlayPrimary)
+        btnOverlayPlayAgain = findViewById(R.id.btnOverlayPlayAgain)
         btnOverlaySettings = findViewById(R.id.btnOverlaySettings)
-
-        switchSound.setOnCheckedChangeListener { _, isChecked ->
-            gameView.audio.isEnabled = isChecked
-            if (isChecked) gameView.audio.uiClick()
-        }
-        switchVibration.setOnCheckedChangeListener { btn, isChecked ->
-            gameView.haptics.isEnabled = isChecked
-            if (isChecked) gameView.haptics.uiTick(btn)
-        }
-        switchSpeedAnalytics.setOnCheckedChangeListener { btn, _ ->
-            triggerUiFeedback(btn)
-        }
-
-        btnTabCampaign.setOnClickListener {
-            triggerUiFeedback(it)
-            switchMainMode(true)
-        }
-        btnTabCustom.setOnClickListener {
-            triggerUiFeedback(it)
-            switchMainMode(false)
-        }
 
         setupAdaptiveGridOptions()
         setupPlayerCountTabs()
-        renderRoster()
-        refreshProfileAndCampaignUI()
-        switchMainMode(true)
+        setupLevelSelectorBar()
+        applyLevelPreset(selectedLevel)
 
-        findViewById<Button>(R.id.btnStartMatch).setOnClickListener {
-            triggerUiFeedback(it)
-            startCustomMatch()
-        }
-        findViewById<ImageButton>(R.id.btnLeaveArena).setOnClickListener {
-            triggerUiFeedback(it)
-            returnToConfig()
-        }
-        findViewById<ImageButton>(R.id.btnResetMatch).setOnClickListener {
-            triggerUiFeedback(it)
-            val lvl = activeCampaignLevel
-            if (isCampaignMode && lvl != null) {
-                startCampaignLevel(lvl)
-            } else {
-                startCustomMatch()
-            }
-        }
+        findViewById<Button>(R.id.btnStartMatch).setOnClickListener { startMatch() }
+        findViewById<ImageButton>(R.id.btnLeaveArena).setOnClickListener { returnToConfig() }
+        findViewById<ImageButton>(R.id.btnResetMatch).setOnClickListener { startMatch() }
 
+        btnOverlayPlayAgain.setOnClickListener {
+            winnerOverlay.visibility = View.GONE
+            startMatch()
+        }
         btnOverlaySettings.setOnClickListener {
-            triggerUiFeedback(it)
             winnerOverlay.visibility = View.GONE
             returnToConfig()
         }
@@ -162,180 +110,89 @@ class MainActivity : AppCompatActivity() {
         gameView.onTurnCompleted = {
             updateArenaHud()
             if (gameView.engine?.isGameOver == true) {
-                gameView.postDelayed({ showVictoryModal() }, 380L)
+                gameView.postDelayed({ showVictoryModal() }, 350L)
             }
         }
     }
 
-    private fun triggerUiFeedback(view: View? = null) {
-        gameView.audio.uiClick()
-        gameView.haptics.uiTick(view)
+    private fun getUnlockedLevel(): Int {
+        return prefs.getInt("unlocked_level", 1).coerceIn(1, 30)
     }
 
-    private fun switchMainMode(campaign: Boolean) {
-        isCampaignMode = campaign
-        if (campaign) {
-            btnTabCampaign.setBackgroundColor(0xFF38BDF8.toInt())
-            btnTabCampaign.setTextColor(Color.BLACK)
-            btnTabCustom.setBackgroundColor(0xFF121824.toInt())
-            btnTabCustom.setTextColor(Color.WHITE)
-            campaignSection.visibility = View.VISIBLE
-            customPlaySection.visibility = View.GONE
-            refreshProfileAndCampaignUI()
-        } else {
-            btnTabCustom.setBackgroundColor(0xFF38BDF8.toInt())
-            btnTabCustom.setTextColor(Color.BLACK)
-            btnTabCampaign.setBackgroundColor(0xFF121824.toInt())
-            btnTabCampaign.setTextColor(Color.WHITE)
-            campaignSection.visibility = View.GONE
-            customPlaySection.visibility = View.VISIBLE
-        }
+    private fun getTotalBankPoints(): Int {
+        return prefs.getInt("total_bank_pts", 0)
     }
 
-    private fun refreshProfileAndCampaignUI() {
-        tvRankBadge.text = campaignManager.getPlayerRankTitle()
-        tvTotalStars.text = "⭐ ${campaignManager.getTotalStars()}/90"
-        tvTotalCoins.text = "🪙 ${campaignManager.totalCoins}"
+    private fun setupLevelSelectorBar() {
+        levelOptionsLayout.removeAllViews()
+        val unlocked = getUnlockedLevel()
+        tvTotalBank.text = "🏆 ${getTotalBankPoints()} PTS"
 
-        campaignLevelsContainer.removeAllViews()
-        val unlocked = campaignManager.unlockedLevel
+        LevelRepository.levels.forEach { spec ->
+            val isUnlocked = spec.number <= unlocked
+            val isSelected = spec.number == selectedLevel
+            val isCleared = spec.number < unlocked
 
-        campaignManager.levels.forEach { lvl ->
-            val isUnlocked = lvl.number <= unlocked
-            val stars = campaignManager.getStarsForLevel(lvl.number)
-
-            val card = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                setPadding(16, 14, 16, 14)
-                val bgColor = when {
-                    !isUnlocked -> 0xFF0E131D.toInt()
-                    lvl.isBoss -> 0xFF2A1215.toInt()
-                    lvl.number == unlocked -> 0xFF16273E.toInt()
-                    else -> 0xFF121824.toInt()
+            val btn = Button(this).apply {
+                text = when {
+                    !isUnlocked -> "🔒 L${spec.number}"
+                    isCleared -> "★ L${spec.number}"
+                    else -> "LVL ${spec.number}"
                 }
-                setBackgroundColor(bgColor)
-                gravity = Gravity.CENTER_VERTICAL
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { setMargins(0, 6, 0, 6) }
-                layoutParams = lp
-
-                if (isUnlocked) {
-                    setOnClickListener {
-                        triggerUiFeedback(this)
-                        startCampaignLevel(lvl)
+                textSize = 12f
+                isEnabled = isUnlocked
+                setTextColor(
+                    when {
+                        isSelected -> Color.BLACK
+                        !isUnlocked -> 0xFF475569.toInt()
+                        else -> Color.WHITE
+                    }
+                )
+                setBackgroundColor(
+                    when {
+                        isSelected -> 0xFF38BDF8.toInt()
+                        !isUnlocked -> 0xFF0E131D.toInt()
+                        else -> 0xFF121824.toInt()
+                    }
+                )
+                setOnClickListener {
+                    if (isUnlocked) {
+                        selectedLevel = spec.number
+                        setupLevelSelectorBar()
+                        applyLevelPreset(spec.number)
                     }
                 }
             }
-
-            val badgeText = TextView(this).apply {
-                text = if (!isUnlocked) "🔒\nL${lvl.number}" else if (lvl.isBoss) "💀\nL${lvl.number}" else "L${lvl.number}"
-                setTextColor(if (lvl.isBoss) 0xFFEF4444.toInt() else if (isUnlocked) 0xFF38BDF8.toInt() else 0xFF475569.toInt())
-                textSize = 13f
-                typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.CENTER
-                layoutParams = LinearLayout.LayoutParams(88, LinearLayout.LayoutParams.WRAP_CONTENT)
-            }
-
-            val infoCol = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    setMargins(12, 0, 12, 0)
-                }
-            }
-
-            val titleTv = TextView(this).apply {
-                text = lvl.title
-                setTextColor(if (isUnlocked) Color.WHITE else 0xFF64748B.toInt())
-                textSize = 14f
-                typeface = Typeface.DEFAULT_BOLD
-            }
-
-            val subTv = TextView(this).apply {
-                val bonusInfo = buildString {
-                    append("${lvl.cols}x${lvl.rows} • ")
-                    if (lvl.gold2xBoxes > 0) append("★${lvl.gold2xBoxes}x2X ")
-                    if (lvl.diamond3xBoxes > 0) append("💎${lvl.diamond3xBoxes}x3X ")
-                    if (lvl.wallPattern != WallPattern.NONE) append("• ${lvl.wallPattern.tag}")
-                }
-                text = bonusInfo
-                setTextColor(if (isUnlocked) 0xFF94A3B8.toInt() else 0xFF475569.toInt())
-                textSize = 11f
-            }
-
-            infoCol.addView(titleTv)
-            infoCol.addView(subTv)
-
-            val rightCol = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.END
-            }
-
-            val starsTv = TextView(this).apply {
-                text = when (stars) {
-                    3 -> "⭐⭐⭐"
-                    2 -> "⭐⭐☆"
-                    1 -> "⭐☆☆"
-                    else -> if (isUnlocked) "☆☆☆" else "LOCKED"
-                }
-                setTextColor(if (stars > 0) 0xFFF59E0B.toInt() else 0xFF64748B.toInt())
-                textSize = 12f
-                typeface = Typeface.DEFAULT_BOLD
-            }
-
-            val rewardTv = TextView(this).apply {
-                text = if (isUnlocked) "🪙 +${lvl.baseCoinReward} ▶" else "Clear L${lvl.number - 1}"
-                setTextColor(if (isUnlocked) 0xFF10B981.toInt() else 0xFF475569.toInt())
-                textSize = 11f
-                typeface = Typeface.DEFAULT_BOLD
-            }
-
-            rightCol.addView(starsTv)
-            rightCol.addView(rewardTv)
-
-            card.addView(badgeText)
-            card.addView(infoCol)
-            card.addView(rightCol)
-            campaignLevelsContainer.addView(card)
+            levelOptionsLayout.addView(btn)
         }
     }
 
-    private fun startCampaignLevel(lvl: CampaignLevel) {
-        isCampaignMode = true
-        activeCampaignLevel = lvl
+    private fun applyLevelPreset(levelNum: Int) {
+        val spec = LevelRepository.levels[(levelNum - 1).coerceIn(0, 29)]
+        tvLevelInfo.text = "LVL ${spec.number}: ${spec.title} • ${spec.pointsPerBox} pts/box • Win Bonus: +${spec.winBonus}"
 
-        val campaignPlayers = mutableListOf<Player>()
-        campaignPlayers.add(Player(0, "You", playerColors[0], BotDifficulty.NONE))
-        lvl.bots.forEachIndexed { idx, botPair ->
-            val color = playerColors[(idx + 1) % playerColors.size]
-            campaignPlayers.add(Player(idx + 1, botPair.first, color, botPair.second))
+        // Sync Grid Selection
+        selectedRows = spec.rows
+        selectedCols = spec.cols
+        for (i in 0 until gridOptionsLayout.childCount) {
+            val b = gridOptionsLayout.getChildAt(i) as Button
+            val preset = gridPresets.getOrNull(i)
+            val match = preset?.second?.first == selectedRows && preset.second.second == selectedCols
+            b.setBackgroundColor(if (match) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
+            b.setTextColor(if (match) Color.BLACK else Color.WHITE)
         }
 
-        gameView.audio.isEnabled = switchSound.isChecked
-        gameView.haptics.isEnabled = switchVibration.isChecked
-        gameView.resetHighlights()
+        // Sync Player Count
+        playerCount = spec.playerCount
+        val counts = listOf(2, 3, 4, 5)
+        for (i in 0 until playerCountTabsLayout.childCount) {
+            val b = playerCountTabsLayout.getChildAt(i) as Button
+            val match = counts.getOrNull(i) == playerCount
+            b.setBackgroundColor(if (match) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
+            b.setTextColor(if (match) Color.BLACK else Color.WHITE)
+        }
 
-        winnerOverlay.visibility = View.GONE
-        configContainer.visibility = View.GONE
-        arenaContainer.visibility = View.VISIBLE
-
-        tvArenaStageTitle.text = "STAGE ${lvl.number}/30 • ${lvl.title.uppercase()} (🪙 +${lvl.baseCoinReward})"
-
-        val engine = GameEngine(
-            rows = lvl.rows,
-            cols = lvl.cols,
-            players = campaignPlayers,
-            gold2xCount = lvl.gold2xBoxes,
-            diamond3xCount = lvl.diamond3xBoxes,
-            wallPattern = lvl.wallPattern,
-            seed = lvl.number * 997
-        )
-        gameView.engine = engine
-        engine.startTurnClock()
-        gameView.invalidate()
-
-        updateArenaHud()
+        renderRoster(forceBotsForLevel = true)
     }
 
     private fun isTablet(): Boolean {
@@ -348,10 +205,12 @@ class MainActivity : AppCompatActivity() {
         val tvDevice = findViewById<TextView>(R.id.tvDeviceType)
         gridOptionsLayout.removeAllViews()
 
-        val presets = if (isTablet()) {
+        gridPresets = if (isTablet()) {
             tvDevice.text = "TABLET HARDWARE DETECTED"
             listOf(
+                "3x3" to Pair(3, 3),
                 "4x4" to Pair(4, 4),
+                "4x5" to Pair(5, 4),
                 "5x5" to Pair(5, 5),
                 "5x7" to Pair(7, 5),
                 "5x8" to Pair(8, 5),
@@ -370,15 +229,14 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        presets.forEachIndexed { idx, pair ->
-            val isDefault = (idx == 1)
+        gridPresets.forEachIndexed { idx, pair ->
+            val isDefault = (idx == 0)
             val btn = Button(this).apply {
                 text = pair.first
                 textSize = 12f
                 setTextColor(if (isDefault) Color.BLACK else Color.WHITE)
                 setBackgroundColor(if (isDefault) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
                 setOnClickListener {
-                    triggerUiFeedback(this)
                     selectedRows = pair.second.first
                     selectedCols = pair.second.second
                     for (i in 0 until gridOptionsLayout.childCount) {
@@ -389,10 +247,6 @@ class MainActivity : AppCompatActivity() {
                     setBackgroundColor(0xFF38BDF8.toInt())
                     setTextColor(Color.BLACK)
                 }
-            }
-            if (isDefault) {
-                selectedRows = pair.second.first
-                selectedCols = pair.second.second
             }
             gridOptionsLayout.addView(btn)
         }
@@ -413,7 +267,6 @@ class MainActivity : AppCompatActivity() {
                 setTextColor(if (isSelected) Color.BLACK else Color.WHITE)
                 setBackgroundColor(if (isSelected) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
                 setOnClickListener {
-                    triggerUiFeedback(this)
                     playerCount = count
                     for (i in 0 until playerCountTabsLayout.childCount) {
                         val b = playerCountTabsLayout.getChildAt(i) as Button
@@ -422,27 +275,22 @@ class MainActivity : AppCompatActivity() {
                     }
                     setBackgroundColor(0xFF38BDF8.toInt())
                     setTextColor(Color.BLACK)
-                    renderRoster()
+                    renderRoster(forceBotsForLevel = false)
                 }
             }
             playerCountTabsLayout.addView(btn)
         }
     }
 
-    private fun renderRoster() {
+    private fun renderRoster(forceBotsForLevel: Boolean = false) {
         rosterLayout.removeAllViews()
         activePlayers.clear()
 
         for (i in 0 until playerCount) {
             val color = playerColors[i]
-            val initialDiff = if (i == 1 && playerCount == 2) BotDifficulty.MEDIUM else BotDifficulty.NONE
-            val defaultName = when (initialDiff) {
-                BotDifficulty.EASY -> "Bot Easy"
-                BotDifficulty.MEDIUM -> "Bot Alpha"
-                BotDifficulty.PRO -> "Pro AI"
-                BotDifficulty.NONE -> "Player ${i + 1}"
-            }
-            val player = Player(i, defaultName, color, initialDiff)
+            val isBot = if (forceBotsForLevel) (i >= 1) else (i == 1 && playerCount == 2)
+            val defaultName = if (i == 0) "Player 1" else if (isBot) "Bot L$selectedLevel-${i}" else "Player ${i + 1}"
+            val player = Player(i, defaultName, color, isBot)
             activePlayers.add(player)
 
             val row = LinearLayout(this).apply {
@@ -469,42 +317,26 @@ class MainActivity : AppCompatActivity() {
                 setBackgroundColor(Color.TRANSPARENT)
             }
 
-            val btnMode = Button(this).apply {
-                text = player.botDifficulty.label
+            val btnBot = Button(this).apply {
+                text = if (isBot) "BOT" else "HUMAN"
                 textSize = 11f
-                setBackgroundColor(player.botDifficulty.badgeColor)
+                setBackgroundColor(if (isBot) 0xFF4C1D95.toInt() else 0xFF1E293B.toInt())
                 setTextColor(Color.WHITE)
                 setOnClickListener {
-                    triggerUiFeedback(this)
-                    player.botDifficulty = player.botDifficulty.next()
-                    text = player.botDifficulty.label
-                    setBackgroundColor(player.botDifficulty.badgeColor)
-
-                    val currentText = etName.text.toString().trim()
-                    if (currentText.startsWith("Player") || currentText.startsWith("Bot") || currentText.startsWith("Pro")) {
-                        val updatedName = when (player.botDifficulty) {
-                            BotDifficulty.NONE -> "Player ${i + 1}"
-                            BotDifficulty.EASY -> "Bot Easy"
-                            BotDifficulty.MEDIUM -> "Bot Med"
-                            BotDifficulty.PRO -> "Pro AI"
-                        }
-                        etName.setText(updatedName)
-                        player.name = updatedName
-                    }
+                    player.isBot = !player.isBot
+                    text = if (player.isBot) "BOT" else "HUMAN"
+                    setBackgroundColor(if (player.isBot) 0xFF4C1D95.toInt() else 0xFF1E293B.toInt())
                 }
             }
 
             row.addView(colorBadge)
             row.addView(etName)
-            row.addView(btnMode)
+            row.addView(btnBot)
             rosterLayout.addView(row)
         }
     }
 
-    private fun startCustomMatch() {
-        isCampaignMode = false
-        activeCampaignLevel = null
-
+    private fun startMatch() {
         for (i in 0 until rosterLayout.childCount) {
             val row = rosterLayout.getChildAt(i) as? LinearLayout ?: continue
             val etName = row.getChildAt(1) as? EditText ?: continue
@@ -515,28 +347,26 @@ class MainActivity : AppCompatActivity() {
         }
 
         gameView.audio.isEnabled = switchSound.isChecked
-        gameView.haptics.isEnabled = switchVibration.isChecked
-        gameView.resetHighlights()
+        gameView.isVibrationEnabled = switchVibration.isChecked
 
         winnerOverlay.visibility = View.GONE
         configContainer.visibility = View.GONE
         arenaContainer.visibility = View.VISIBLE
 
-        tvArenaStageTitle.text = "CUSTOM MATCH • ${selectedCols}x${selectedRows} ARENA"
-
         activePlayers.forEach {
             it.score = 0
+            it.boxesCount = 0
             it.totalTimeMillis = 0L
             it.movesCount = 0
         }
+
+        val spec = LevelRepository.levels[(selectedLevel - 1).coerceIn(0, 29)]
         val engine = GameEngine(
             rows = selectedRows,
             cols = selectedCols,
             players = activePlayers,
-            gold2xCount = 2,
-            diamond3xCount = 1,
-            wallPattern = WallPattern.NONE,
-            seed = System.currentTimeMillis().toInt()
+            pointsPerBox = spec.pointsPerBox,
+            aiSkillLevel = spec.aiSkillLevel
         )
         gameView.engine = engine
         engine.startTurnClock()
@@ -553,19 +383,13 @@ class MainActivity : AppCompatActivity() {
         winnerOverlay.visibility = View.GONE
         arenaContainer.visibility = View.GONE
         configContainer.visibility = View.VISIBLE
-        refreshProfileAndCampaignUI()
+        setupLevelSelectorBar()
     }
 
     private fun updateArenaHud() {
         val eng = gameView.engine ?: return
         val current = eng.getCurrentPlayer()
-        val modeTag = when (current.botDifficulty) {
-            BotDifficulty.EASY -> " [EASY]"
-            BotDifficulty.MEDIUM -> " [MED]"
-            BotDifficulty.PRO -> " [PRO]"
-            BotDifficulty.NONE -> ""
-        }
-        tvTurnIndicator.text = "${current.name}$modeTag's Turn"
+        tvTurnIndicator.text = "LVL $selectedLevel • ${current.name}'s Turn"
         tvTurnIndicator.setTextColor(current.color)
 
         val totalHumanMillis = eng.players.filter { !it.isBot }.sumOf { it.totalTimeMillis }
@@ -573,7 +397,7 @@ class MainActivity : AppCompatActivity() {
         arenaScoresLayout.removeAllViews()
         eng.players.forEach { p ->
             val tv = TextView(this).apply {
-                val baseText = "${p.name}: ${p.score} pts"
+                val baseText = "${p.name}: ${p.score}"
                 text = if (switchSpeedAnalytics.isChecked && !p.isBot && totalHumanMillis > 0) {
                     val pct = (p.totalTimeMillis.toDouble() / totalHumanMillis.toDouble()) * 100.0
                     "$baseText (${String.format(Locale.US, "%.0f", pct)}% time)  "
@@ -592,69 +416,49 @@ class MainActivity : AppCompatActivity() {
         val eng = gameView.engine ?: return
         val sorted = eng.players.sortedByDescending { it.score }
         val winner = sorted.firstOrNull() ?: return
-        val lvl = activeCampaignLevel
+        val spec = LevelRepository.levels[(selectedLevel - 1).coerceIn(0, 29)]
+        val hasBotOpponent = eng.players.any { it.isBot }
 
-        if (isCampaignMode && lvl != null) {
-            val humanWon = (winner.id == 0)
-            if (humanWon) {
-                val rewardPair = campaignManager.recordVictory(
-                    lvl,
-                    winner.score,
-                    eng.getTotalBoardPoints()
-                )
-                val stars = rewardPair.first
-                val coinsEarned = rewardPair.second
+        if (winner.id == 0 && hasBotOpponent) {
+            // Player 1 beat the level! Award level bonus and unlock next level
+            val newBank = getTotalBankPoints() + winner.score + spec.winBonus
+            val unlocked = getUnlockedLevel()
+            val nextLevel = (selectedLevel + 1).coerceAtMost(30)
 
-                tvWinnerStars.text = when (stars) {
-                    3 -> "⭐⭐⭐"
-                    2 -> "⭐⭐☆"
-                    else -> "⭐☆☆"
-                }
-                tvWinnerTitle.text = "LEVEL ${lvl.number} CLEARED!"
-                tvWinnerTitle.setTextColor(0xFF10B981.toInt())
-                val rankTitle = campaignManager.getPlayerRankTitle()
-                tvWinnerSubtitle.text = "🪙 +$coinsEarned Gold Coins  •  $rankTitle"
+            prefs.edit()
+                .putInt("total_bank_pts", newBank)
+                .putInt("unlocked_level", maxOf(unlocked, nextLevel))
+                .apply()
 
-                if (lvl.number < 30) {
-                    val nextLvl = campaignManager.levels[lvl.number]
-                    btnOverlayPrimary.text = "NEXT: LEVEL ${nextLvl.number} ⏭"
-                    btnOverlayPrimary.setOnClickListener {
-                        triggerUiFeedback(it)
-                        winnerOverlay.visibility = View.GONE
-                        startCampaignLevel(nextLvl)
-                    }
-                } else {
-                    btnOverlayPrimary.text = "👑 CAMPAIGN COMPLETED! REPLAY"
-                    btnOverlayPrimary.setOnClickListener {
-                        triggerUiFeedback(it)
-                        winnerOverlay.visibility = View.GONE
-                        startCampaignLevel(lvl)
-                    }
+            tvWinnerTitle.text = "LEVEL $selectedLevel CLEARED!"
+            tvWinnerTitle.setTextColor(winner.color)
+            tvWinnerSubtitle.text = "Score: ${winner.score} + ${spec.winBonus} Bonus  •  Bank: 🏆 $newBank"
+
+            if (selectedLevel < 30) {
+                btnOverlayPlayAgain.text = "NEXT: LEVEL ${selectedLevel + 1} ⏭"
+                btnOverlayPlayAgain.setOnClickListener {
+                    winnerOverlay.visibility = View.GONE
+                    selectedLevel = (selectedLevel + 1).coerceAtMost(30)
+                    setupLevelSelectorBar()
+                    applyLevelPreset(selectedLevel)
+                    startMatch()
                 }
             } else {
-                tvWinnerStars.text = "💀"
-                tvWinnerTitle.text = "STAGE ${lvl.number} FAILED"
-                tvWinnerTitle.setTextColor(0xFFEF4444.toInt())
-                tvWinnerSubtitle.text = "${winner.name} won with ${winner.score} pts. Try again!"
-
-                btnOverlayPrimary.text = "RETRY LEVEL ${lvl.number} 🔄"
-                btnOverlayPrimary.setOnClickListener {
-                    triggerUiFeedback(it)
+                btnOverlayPlayAgain.text = "PLAY LEVEL 30 AGAIN"
+                btnOverlayPlayAgain.setOnClickListener {
                     winnerOverlay.visibility = View.GONE
-                    startCampaignLevel(lvl)
+                    startMatch()
                 }
             }
         } else {
-            tvWinnerStars.text = "🏆"
             tvWinnerTitle.text = "${winner.name.uppercase()} WINS!"
             tvWinnerTitle.setTextColor(winner.color)
-            tvWinnerSubtitle.text = "Scored ${winner.score} total points"
+            tvWinnerSubtitle.text = "Captured ${winner.boxesCount} boxes (${winner.score} pts)"
 
-            btnOverlayPrimary.text = "PLAY AGAIN 🔄"
-            btnOverlayPrimary.setOnClickListener {
-                triggerUiFeedback(it)
+            btnOverlayPlayAgain.text = if (hasBotOpponent) "RETRY LEVEL $selectedLevel" else "PLAY AGAIN"
+            btnOverlayPlayAgain.setOnClickListener {
                 winnerOverlay.visibility = View.GONE
-                startCustomMatch()
+                startMatch()
             }
         }
 
@@ -683,22 +487,15 @@ class MainActivity : AppCompatActivity() {
                 setBackgroundColor(p.color)
             }
 
-            val aiSuffix = when (p.botDifficulty) {
-                BotDifficulty.EASY -> " (Easy)"
-                BotDifficulty.MEDIUM -> " (Med)"
-                BotDifficulty.PRO -> " (Pro AI)"
-                BotDifficulty.NONE -> ""
-            }
-
             val nameView = TextView(this).apply {
-                text = "${p.name}$aiSuffix"
+                text = p.name + if (p.isBot) " (AI)" else ""
                 setTextColor(Color.WHITE)
                 textSize = 12f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             }
 
             val scoreView = TextView(this).apply {
-                text = "${p.score} pts"
+                text = "${p.boxesCount} boxes (${p.score} pts)"
                 setTextColor(p.color)
                 textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
@@ -712,12 +509,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         winnerAnalyticsLayout.removeAllViews()
-        val humanPlayers = eng.players.filter { !it.isBot }
-        if (switchSpeedAnalytics.isChecked && humanPlayers.isNotEmpty()) {
+        if (switchSpeedAnalytics.isChecked) {
             tvAnalyticsHeading.visibility = View.VISIBLE
             winnerAnalyticsLayout.visibility = View.VISIBLE
 
+            val humanPlayers = eng.players.filter { !it.isBot }
             val totalHumanMillis = humanPlayers.sumOf { it.totalTimeMillis }
+
             val rankedBySpeed = humanPlayers.sortedBy { it.getAverageResponseSec() }
             val fastestHuman = rankedBySpeed.firstOrNull { it.movesCount > 0 }
 
