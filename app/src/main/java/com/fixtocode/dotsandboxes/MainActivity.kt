@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.util.Base64
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +26,13 @@ class MainActivity : AppCompatActivity() {
         const val OFFICIAL_WEB_URL = "https://dotsandboxe.netlify.app"
         const val UNITY_GAME_ID = "800398416"
         const val UNITY_TEST_MODE = false
+
+        // 12 Hours in Milliseconds for Sponsored Ad Cache
+        const val TWELVE_HOURS_MS = 12L * 60L * 60L * 1000L
+        // 24 Hours in Milliseconds for Daily App Update Check
+        const val TWENTY_FOUR_HOURS_MS = 24L * 60L * 60L * 1000L
+
+        const val CLOUD_AD_ENDPOINT = "https://keyvalue.immanuel.co/api/KeyVal/GetValue/fixtocode_dots_800398416/live_ad_config_v1"
     }
 
     private lateinit var prefs: SharedPreferences
@@ -56,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnOverlayPlayAgain: Button
     private lateinit var btnOverlaySettings: Button
 
-    // 6-Second Ad Overlay Views (Fallback / House Ad)
+    // 6-Second Sponsored Ad Overlay Views (Cached for 12 Hours)
     private lateinit var adOverlay: FrameLayout
     private lateinit var tvAdBadge: TextView
     private lateinit var tvAdCountdown: TextView
@@ -66,6 +74,7 @@ class MainActivity : AppCompatActivity() {
     private var adTimer: CountDownTimer? = null
     private var isAdSkippable: Boolean = false
     private var currentAdTargetUrl: String = OFFICIAL_WEB_URL
+    private var currentAdMode: String = "hybrid"
 
     // Daily Web Update Overlay Views
     private lateinit var updateOverlay: FrameLayout
@@ -148,14 +157,14 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putBoolean("first_install_5x5_initialized", true).apply()
         }
 
-        // Load cached ad texts if previously synced from web
-        loadCachedAdConfig()
+        // 1. Load 12-Hour Cached Sponsored Ad from local storage
+        loadCachedSponsoredAd()
 
-        // Initialize Family-Safe Unity Ads SDK (Game ID: 800398416)
+        // 2. Initialize Unity Ads SDK (Fetches LIVE ads from Unity servers)
         UnityAdsBridge.initialize(this, UNITY_GAME_ID, UNITY_TEST_MODE)
 
-        // Check for web updates once per day
-        checkWebUpdateOncePerDay()
+        // 3. Check if 12 hours have passed to refresh Sponsored Ad, and 24 hours for App Update
+        checkTwelveHourSponsoredAdAndDailyUpdate()
 
         findViewById<Button>(R.id.btnStartMatch).setOnClickListener { startMatch() }
         findViewById<ImageButton>(R.id.btnLeaveArena).setOnClickListener { returnToConfig() }
@@ -195,80 +204,117 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Checks 1 time per day if a newer version is available on https://dotsandboxe.netlify.app
+     * Sponsored Ad stays cached in the app for 12 HOURS.
+     * Only after 12 hours does the app fetch new Sponsored Ad data from your Web/Cloud.
+     * App Version Update checks once every 24 HOURS.
      */
-    private fun checkWebUpdateOncePerDay() {
-        val currentEpochDay = System.currentTimeMillis() / 86_400_000L
-        val lastCheckedDay = prefs.getLong("last_update_check_day", -1L)
+    private fun checkTwelveHourSponsoredAdAndDailyUpdate() {
+        val now = System.currentTimeMillis()
+        val lastAdSyncMs = prefs.getLong("last_sponsored_ad_sync_ms", 0L)
+        val lastUpdateCheckMs = prefs.getLong("last_version_check_ms", 0L)
 
-        if (currentEpochDay <= lastCheckedDay) return
+        val needAdRefresh = (now - lastAdSyncMs) >= TWELVE_HOURS_MS
+        val needVersionCheck = (now - lastUpdateCheckMs) >= TWENTY_FOUR_HOURS_MS
+
+        if (!needAdRefresh && !needVersionCheck) return
 
         thread(start = true) {
+            var json: JSONObject? = null
+
+            // Try Live Cloud Ad Endpoint first (updated instantly by your Web Admin Panel)
             try {
-                val endpoint = "${OFFICIAL_WEB_URL.trimEnd('/')}/version.json?t=$currentEpochDay"
-                val url = URL(endpoint)
-                val conn = (url.openConnection() as HttpURLConnection).apply {
+                val cloudConn = (URL(CLOUD_AD_ENDPOINT).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
-                    connectTimeout = 5000
-                    readTimeout = 5000
+                    connectTimeout = 4500
+                    readTimeout = 4500
                 }
-
-                if (conn.responseCode == 200) {
-                    val responseText = conn.inputStream.bufferedReader().use { it.readText() }
-                    val json = JSONObject(responseText)
-
-                    prefs.edit().putLong("last_update_check_day", currentEpochDay).apply()
-
-                    val adBadge = json.optString("adBadge", "")
-                    val adHeadline = json.optString("adHeadline", "")
-                    val adDesc = json.optString("adDescription", "")
-                    val adBtn = json.optString("adButtonText", "")
-                    val adUrl = json.optString("adUrl", "")
-                    if (adHeadline.isNotEmpty()) {
-                        prefs.edit()
-                            .putString("ad_badge", adBadge)
-                            .putString("ad_headline", adHeadline)
-                            .putString("ad_desc", adDesc)
-                            .putString("ad_btn", adBtn)
-                            .putString("ad_url", adUrl)
-                            .apply()
+                if (cloudConn.responseCode == 200) {
+                    val rawB64 = cloudConn.inputStream.bufferedReader().use { it.readText() }.trim().removeSurrounding("\"")
+                    if (rawB64.length > 10) {
+                        val decodedBytes = Base64.decode(rawB64, Base64.URL_SAFE or Base64.NO_WRAP)
+                        json = JSONObject(String(decodedBytes, Charsets.UTF_8))
                     }
+                }
+                cloudConn.disconnect()
+            } catch (e: Exception) {}
 
-                    val remoteVersionCode = json.optInt("versionCode", CURRENT_VERSION_CODE)
-                    val remoteVersionName = json.optString("versionName", "New")
-                    val updateMsg = json.optString(
-                        "updateMessage",
-                        "Version $remoteVersionName is now available on our official website!"
-                    )
-                    val targetWebUrl = json.optString("websiteUrl", OFFICIAL_WEB_URL)
+            // Fallback to https://dotsandboxe.netlify.app/version.json
+            if (json == null) {
+                try {
+                    val netlifyUrl = "$OFFICIAL_WEB_URL/version.json?t=${now / TWELVE_HOURS_MS}"
+                    val netConn = (URL(netlifyUrl).openConnection() as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 5000
+                        readTimeout = 5000
+                    }
+                    if (netConn.responseCode == 200) {
+                        val text = netConn.inputStream.bufferedReader().use { it.readText() }
+                        json = JSONObject(text)
+                    }
+                    netConn.disconnect()
+                } catch (e: Exception) {}
+            }
 
-                    runOnUiThread {
-                        loadCachedAdConfig()
-                        if (remoteVersionCode > CURRENT_VERSION_CODE) {
-                            tvUpdateTitle.text = "VERSION $remoteVersionName AVAILABLE!"
-                            tvUpdateMessage.text = updateMsg
-                            btnUpdateNow.setOnClickListener {
-                                updateOverlay.visibility = View.GONE
-                                openWebUrl(targetWebUrl)
-                            }
-                            updateOverlay.visibility = View.VISIBLE
+            val finalJson = json ?: return@thread
+
+            // 1. If 12 Hours expired, lock in the new Sponsored Ad for the next 12 Hours
+            if (needAdRefresh) {
+                val adMode = finalJson.optString("adMode", "hybrid")
+                val adBadge = finalJson.optString("adBadge", "")
+                val adHeadline = finalJson.optString("adHeadline", "")
+                val adDesc = finalJson.optString("adDescription", "")
+                val adBtn = finalJson.optString("adButtonText", "")
+                val adUrl = finalJson.optString("adUrl", "")
+
+                if (adHeadline.isNotEmpty()) {
+                    prefs.edit()
+                        .putLong("last_sponsored_ad_sync_ms", now)
+                        .putString("ad_mode", adMode)
+                        .putString("ad_badge", adBadge)
+                        .putString("ad_headline", adHeadline)
+                        .putString("ad_desc", adDesc)
+                        .putString("ad_btn", adBtn)
+                        .putString("ad_url", adUrl)
+                        .apply()
+                }
+            }
+
+            // 2. If 24 Hours expired, check if a new App Version is available
+            val remoteVersionCode = finalJson.optInt("versionCode", CURRENT_VERSION_CODE)
+            val remoteVersionName = finalJson.optString("versionName", "New")
+            val updateMsg = finalJson.optString(
+                "updateMessage",
+                "Version $remoteVersionName is now available on our official website!"
+            )
+            val targetWebUrl = finalJson.optString("websiteUrl", OFFICIAL_WEB_URL)
+
+            runOnUiThread {
+                loadCachedSponsoredAd()
+                if (needVersionCheck) {
+                    prefs.edit().putLong("last_version_check_ms", now).apply()
+                    if (remoteVersionCode > CURRENT_VERSION_CODE) {
+                        tvUpdateTitle.text = "VERSION $remoteVersionName AVAILABLE!"
+                        tvUpdateMessage.text = updateMsg
+                        btnUpdateNow.setOnClickListener {
+                            updateOverlay.visibility = View.GONE
+                            openWebUrl(targetWebUrl)
                         }
+                        updateOverlay.visibility = View.VISIBLE
                     }
                 }
-                conn.disconnect()
-            } catch (e: Exception) {
-                // Silent fail if user is offline
             }
         }
     }
 
-    private fun loadCachedAdConfig() {
+    private fun loadCachedSponsoredAd() {
+        val mode = prefs.getString("ad_mode", "hybrid")
         val badge = prefs.getString("ad_badge", null)
         val headline = prefs.getString("ad_headline", null)
         val desc = prefs.getString("ad_desc", null)
         val btn = prefs.getString("ad_btn", null)
         val url = prefs.getString("ad_url", null)
 
+        if (!mode.isNullOrBlank()) currentAdMode = mode
         if (!badge.isNullOrBlank()) tvAdBadge.text = badge
         if (!headline.isNullOrBlank()) tvAdHeadline.text = headline
         if (!desc.isNullOrBlank()) tvAdDescription.text = desc
@@ -284,36 +330,41 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Increments play count and shows a Unity Ad (or 6s skippable fallback) strictly after every 2 plays
+     * Triggers every 2 plays:
+     * - Unity Ads fetches LIVE from Unity servers.
+     * - Your Sponsored Ad uses the 12-hour cached configuration (and checks if 12h expired).
      */
     private fun handleMatchEndWithAdCheck() {
+        checkTwelveHourSponsoredAdAndDailyUpdate()
+
         val plays = prefs.getInt("matches_played_count", 0) + 1
         prefs.edit().putInt("matches_played_count", plays).apply()
 
         if (plays % 2 == 0) {
-            if (UnityAdsBridge.isReady()) {
+            if (currentAdMode == "custom") {
+                showSixSecondSponsoredAdThenVictory()
+            } else if (UnityAdsBridge.isReady()) {
                 UnityAdsBridge.showInterstitial(this, object : UnityAdsBridge.AdCompleteCallback {
                     override fun onAdFinished() {
                         runOnUiThread { showVictoryModal() }
                     }
 
                     override fun onAdFailed() {
-                        runOnUiThread { showSixSecondAdThenVictory() }
+                        runOnUiThread { showSixSecondSponsoredAdThenVictory() }
                     }
                 })
             } else {
                 UnityAdsBridge.preloadAd("Interstitial_Android")
-                showSixSecondAdThenVictory()
+                showSixSecondSponsoredAdThenVictory()
             }
         } else {
+            UnityAdsBridge.preloadAd("Interstitial_Android")
             showVictoryModal()
         }
     }
 
-    /**
-     * Fallback 6-Second YouTube-Style Ad Overlay with "SKIP AD ⏭" button unlock
-     */
-    private fun showSixSecondAdThenVictory() {
+    private fun showSixSecondSponsoredAdThenVictory() {
+        loadCachedSponsoredAd()
         adTimer?.cancel()
         isAdSkippable = false
         tvAdCountdown.text = "Skip in 6s"
@@ -398,7 +449,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyLevelPreset(levelNum: Int) {
         val spec = LevelRepository.levels[(levelNum - 1).coerceIn(0, 29)]
-        tvLevelInfo.text = "LVL ${spec.number}: ${spec.title} • ${spec.pointsPerBox} pts/box • Win Bonus: +${spec.winBonus}"
+        tvLevelInfo.text = "LVL ${spec.number}: ${spec.title} •${spec.pointsPerBox} pts/box • Win Bonus: +${spec.winBonus}"
 
         selectedRows = spec.rows
         selectedCols = spec.cols
@@ -615,7 +666,7 @@ class MainActivity : AppCompatActivity() {
         arenaScoresLayout.removeAllViews()
         eng.players.forEach { p ->
             val tv = TextView(this).apply {
-                val baseText = "${p.name}: ${p.score}"
+                val baseText = "${p.name}:${p.score}"
                 text = if (switchSpeedAnalytics.isChecked && !p.isBot && totalHumanMillis > 0) {
                     val pct = (p.totalTimeMillis.toDouble() / totalHumanMillis.toDouble()) * 100.0
                     "$baseText (${String.format(Locale.US, "%.0f", pct)}% time)  "
