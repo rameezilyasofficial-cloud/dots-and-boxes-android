@@ -122,11 +122,11 @@
                 android:orientation="horizontal"
                 android:layout_marginTop="8dp" />
 
-            <!-- Roster Configuration List -->
+            <!-- Roster Configuration List with Real ON/OFF AI Switches -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="PLAYERS &amp; BOT ON/OFF TOGGLE"
+                android:text="PLAYERS &amp; AI ON/OFF SWITCH"
                 android:textColor="@color/text_light"
                 android:textStyle="bold"
                 android:textSize="13sp"
@@ -143,7 +143,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="SETTINGS &amp; SPEED IQ ANALYTICS"
+                android:text="SETTINGS &amp; APP UPDATE"
                 android:textColor="@color/text_light"
                 android:textStyle="bold"
                 android:textSize="13sp"
@@ -183,6 +183,17 @@
                     android:textColor="@color/accent_blue"
                     android:checked="true"
                     android:paddingVertical="4dp" />
+
+                <Button
+                    android:id="@+id/btnCheckUpdateManual"
+                    android:layout_width="match_parent"
+                    android:layout_height="42dp"
+                    android:text="🔄 CHECK FOR APP UPDATE"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/accent_blue"
+                    android:backgroundTint="#1A2333"
+                    android:layout_marginTop="6dp" />
             </LinearLayout>
 
             <Button
@@ -386,7 +397,6 @@
             android:padding="20dp"
             android:gravity="center_horizontal">
 
-            <!-- Top Ad Bar: Sponsored Slot Tag + 6s Skip Pill -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -419,7 +429,6 @@
                     android:focusable="true" />
             </LinearLayout>
 
-            <!-- Widescreen Picture / Video Media Stage -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="190dp"
@@ -489,7 +498,7 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- WINDOW 5: DAILY WEB UPDATE AVAILABLE POPUP -->
+    <!-- WINDOW 5: IN-APP UPDATE SYSTEM OVERLAY -->
     <FrameLayout
         android:id="@+id/updateOverlay"
         android:layout_width="match_parent"
@@ -530,7 +539,7 @@
                 android:id="@+id/tvUpdateMessage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="A new version of Dots &amp; Boxes has been launched on our website."
+                android:text="A new version of Dots &amp; Boxes is ready to install."
                 android:textColor="@color/text_light"
                 android:textSize="13sp"
                 android:gravity="center"
@@ -540,7 +549,7 @@
                 android:id="@+id/btnUpdateNow"
                 android:layout_width="match_parent"
                 android:layout_height="50dp"
-                android:text="OPEN WEBSITE &amp; UPDATE"
+                android:text="⬇ DOWNLOAD &amp; INSTALL UPDATE"
                 android:textStyle="bold"
                 android:textColor="#000000"
                 android:backgroundTint="@color/accent_blue"

@@ -7,16 +7,30 @@ android {
     namespace 'com.fixtocode.dotsandboxes'
     compileSdk 34
 
+    signingConfigs {
+        fixedKey {
+            storeFile file("fixed_debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
+    }
+
     defaultConfig {
         applicationId "com.fixtocode.dotsandboxes"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        // Auto-increments on every build so Android always installs as an UPDATE!
+        versionCode = (int) (System.currentTimeMillis() / 60000L)
+        versionName "1.1"
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.fixedKey
+        }
         release {
+            signingConfig signingConfigs.fixedKey
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }

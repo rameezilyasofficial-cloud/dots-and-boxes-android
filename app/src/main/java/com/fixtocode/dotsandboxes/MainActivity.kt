@@ -11,6 +11,7 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.view.Gravity
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
@@ -24,7 +25,7 @@ import kotlin.concurrent.thread
 data class SponsoredAdItem(
     val id: Int,
     val enabled: Boolean,
-    val mediaType: String, // "image" or "video"
+    val mediaType: String,
     val mediaUrl: String,
     val badge: String,
     val headline: String,
@@ -36,9 +37,10 @@ data class SponsoredAdItem(
 class MainActivity : AppCompatActivity() {
 
     companion object {
-        const val CURRENT_VERSION_CODE = 1
+        const val APP_RELEASE_NUMBER = 1
         const val OFFICIAL_WEB_URL = "https://dotsandboxe.netlify.app"
-        const val GITHUB_RAW_JSON_URL = "https://raw.githubusercontent.com/rameezilyasofficial-cloud/dots-and-boxes-android/main/version.json"
+        const val DIRECT_APK_URL = "https://dotsandboxe.netlify.app/dotandboxes.apk"
+        const val LIVE_CLOUD_DB_URL = "https://dotsandboxe.netlify.app/version.json"
         const val UNITY_GAME_ID = "800398416"
         const val UNITY_TEST_MODE = false
 
@@ -60,10 +62,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var arenaScoresLayout: LinearLayout
     private lateinit var gameView: GameView
 
-    // Settings
+    // Settings & Update Button
     private lateinit var switchSound: Switch
     private lateinit var switchVibration: Switch
     private lateinit var switchSpeedAnalytics: Switch
+    private lateinit var btnCheckUpdateManual: Button
 
     // Victory Screen Overlay Views
     private lateinit var winnerOverlay: FrameLayout
@@ -92,7 +95,7 @@ class MainActivity : AppCompatActivity() {
     private var currentAdMode: String = "hybrid"
     private val bitmapCache = mutableMapOf<String, Bitmap>()
 
-    // Daily Web Update Overlay Views
+    // In-App Update Overlay Views
     private lateinit var updateOverlay: FrameLayout
     private lateinit var tvUpdateTitle: TextView
     private lateinit var tvUpdateMessage: TextView
@@ -107,7 +110,6 @@ class MainActivity : AppCompatActivity() {
         0xFF8B5CF6.toInt()  // P5 Violet
     )
 
-    // User Preferences (Defaults to 5x5 on very first install, then remembers user choice!)
     private var selectedLevel: Int = 1
     private var selectedRows = 5
     private var selectedCols = 5
@@ -122,7 +124,7 @@ class MainActivity : AppCompatActivity() {
         prefs = getSharedPreferences("dots_boxes_progress", Context.MODE_PRIVATE)
         selectedLevel = getUnlockedLevel()
 
-        // Restore user's saved Grid Size & Player Count preferences (Default 5x5 on first install)
+        // Restore saved user preferences (Default 5x5 on first install, then remembers choice)
         selectedRows = prefs.getInt("user_pref_rows", 5)
         selectedCols = prefs.getInt("user_pref_cols", 5)
         playerCount = prefs.getInt("user_pref_player_count", 2).coerceIn(2, 5)
@@ -142,6 +144,7 @@ class MainActivity : AppCompatActivity() {
         switchSound = findViewById(R.id.switchSound)
         switchVibration = findViewById(R.id.switchVibration)
         switchSpeedAnalytics = findViewById(R.id.switchSpeedAnalytics)
+        btnCheckUpdateManual = findViewById(R.id.btnCheckUpdateManual)
 
         winnerOverlay = findViewById(R.id.winnerOverlay)
         tvWinnerTitle = findViewById(R.id.tvWinnerTitle)
@@ -175,11 +178,16 @@ class MainActivity : AppCompatActivity() {
         updateLevelBannerText(selectedLevel)
         renderRoster()
 
-        // Initialize Live Unity Ads SDK (Game ID: 800398416)
+        // Initialize Live Unity Ads SDK (800398416)
         UnityAdsBridge.initialize(this, UNITY_GAME_ID, UNITY_TEST_MODE)
 
-        // Force check on fresh app launch so newly published ads appear immediately!
-        syncFourAdsAndCheckUpdate(forceCheckOnStartup = true)
+        // Sync 4-Ad Cloud Studio & Check for App Updates
+        syncFourAdsAndCheckUpdate(forceCheckOnStartup = true, manualUserCheck = false)
+
+        btnCheckUpdateManual.setOnClickListener {
+            Toast.makeText(this, "Checking for latest update...", Toast.LENGTH_SHORT).show()
+            syncFourAdsAndCheckUpdate(forceCheckOnStartup = true, manualUserCheck = true)
+        }
 
         findViewById<Button>(R.id.btnStartMatch).setOnClickListener { startMatch() }
         findViewById<ImageButton>(R.id.btnLeaveArena).setOnClickListener { returnToConfig() }
@@ -219,34 +227,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Fetches the 4-Ad configuration from Netlify (and GitHub Raw fallback).
-     * Caches for 12 hours during gameplay, and refreshes on app startup if updated.
+     * Fetches the 4-Ad Cloud Database + Checks for New App Updates.
      */
-    private fun syncFourAdsAndCheckUpdate(forceCheckOnStartup: Boolean) {
+    private fun syncFourAdsAndCheckUpdate(forceCheckOnStartup: Boolean, manualUserCheck: Boolean) {
         val now = System.currentTimeMillis()
         val lastAdSyncMs = prefs.getLong("last_sponsored_ad_sync_ms", 0L)
         val lastUpdateCheckMs = prefs.getLong("last_version_check_ms", 0L)
 
         val needAdRefresh = forceCheckOnStartup || ((now - lastAdSyncMs) >= TWELVE_HOURS_MS)
-        val needVersionCheck = (now - lastUpdateCheckMs) >= TWENTY_FOUR_HOURS_MS
+        val needVersionCheck = manualUserCheck || ((now - lastUpdateCheckMs) >= TWENTY_FOUR_HOURS_MS)
 
         if (!needAdRefresh && !needVersionCheck) return
 
         thread(start = true) {
             var json: JSONObject? = null
 
-            // 1. Fetch from Netlify Live URL
             val urlsToTry = listOf(
-                "$OFFICIAL_WEB_URL/version.json?t=$now",
-                "$GITHUB_RAW_JSON_URL?t=$now"
+                LIVE_CLOUD_DB_URL,
+                "$OFFICIAL_WEB_URL/version.json?t=$now"
             )
 
             for (endpoint in urlsToTry) {
                 try {
                     val conn = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                         requestMethod = "GET"
-                        connectTimeout = 4500
-                        readTimeout = 4500
+                        connectTimeout = 5000
+                        readTimeout = 5000
                         useCaches = false
                     }
                     if (conn.responseCode == 200) {
@@ -262,9 +268,16 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {}
             }
 
-            val finalJson = json ?: return@thread
+            val finalJson = json
+            if (finalJson == null) {
+                if (manualUserCheck) {
+                    runOnUiThread {
+                        Toast.makeText(this, "Could not reach update server.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                return@thread
+            }
 
-            // Save 4-Ad JSON Array & Mode into 12-Hour Local Cache
             val adMode = finalJson.optString("adMode", "hybrid")
             val adsArray = finalJson.optJSONArray("ads")
 
@@ -277,27 +290,31 @@ class MainActivity : AppCompatActivity() {
             }
             editor.apply()
 
-            // Pre-cache any Picture Ad bitmaps in background
             preloadFourAdPictures()
 
-            // Check App Version Update once every 24 Hours
-            val remoteVersionCode = finalJson.optInt("versionCode", CURRENT_VERSION_CODE)
-            val remoteVersionName = finalJson.optString("versionName", "New")
+            val remoteVersionCode = finalJson.optInt("versionCode", APP_RELEASE_NUMBER)
+            val remoteVersionName = finalJson.optString("versionName", "1.1")
             val updateMsg = finalJson.optString(
                 "updateMessage",
-                "Version $remoteVersionName is now available on our official website!"
+                "Version $remoteVersionName is ready! Tap below to download and install the update over your current app."
             )
-            val targetWebUrl = finalJson.optString("websiteUrl", OFFICIAL_WEB_URL)
+            val apkUrl = finalJson.optString("apkDownloadUrl", DIRECT_APK_URL)
+            val webUrl = finalJson.optString("websiteUrl", OFFICIAL_WEB_URL)
 
             runOnUiThread {
                 if (needVersionCheck) {
                     prefs.edit().putLong("last_version_check_ms", now).apply()
-                    if (remoteVersionCode > CURRENT_VERSION_CODE) {
-                        tvUpdateTitle.text = "VERSION $remoteVersionName AVAILABLE!"
+                    if (remoteVersionCode > APP_RELEASE_NUMBER || manualUserCheck) {
+                        tvUpdateTitle.text = if (remoteVersionCode > APP_RELEASE_NUMBER) {
+                            "UPDATE v$remoteVersionName AVAILABLE!"
+                        } else {
+                            "LATEST VERSION ($remoteVersionName)"
+                        }
                         tvUpdateMessage.text = updateMsg
                         btnUpdateNow.setOnClickListener {
                             updateOverlay.visibility = View.GONE
-                            openWebUrl(targetWebUrl)
+                            // Open direct APK download or website
+                            openWebUrl(if (apkUrl.isNotEmpty()) apkUrl else webUrl)
                         }
                         updateOverlay.visibility = View.VISIBLE
                     }
@@ -384,7 +401,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleMatchEndWithAdCheck() {
-        syncFourAdsAndCheckUpdate(forceCheckOnStartup = false)
+        syncFourAdsAndCheckUpdate(forceCheckOnStartup = false, manualUserCheck = false)
 
         val plays = prefs.getInt("matches_played_count", 0) + 1
         prefs.edit().putInt("matches_played_count", plays).apply()
@@ -413,9 +430,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Plays the next Sponsored Ad in the 1->4 sequence (Supports Picture or Video!)
-     */
     private fun showSequentialSponsoredAdThenVictory() {
         val ad = getNextSequentialSponsoredAd()
 
@@ -433,7 +447,6 @@ class MainActivity : AppCompatActivity() {
         tvAdCountdown.setTextColor(0xFF38BDF8.toInt())
         adOverlay.visibility = View.VISIBLE
 
-        // Configure Media Stage (Picture vs Video)
         if (ad.mediaType == "video" && ad.mediaUrl.startsWith("http")) {
             ivAdPicture.visibility = View.GONE
             tvAdFallbackIcon.visibility = View.GONE
@@ -578,12 +591,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Updates the Level Info Banner WITHOUT overwriting user's saved Grid Size or Bot Settings!
-     */
     private fun updateLevelBannerText(levelNum: Int) {
         val spec = LevelRepository.levels[(levelNum - 1).coerceIn(0, 29)]
-        tvLevelInfo.text = "LVL ${spec.number}: ${spec.title} •${spec.pointsPerBox} pts/box • Win Bonus: +${spec.winBonus}"
+        tvLevelInfo.text = "LVL ${spec.number}: ${spec.title} • ${spec.pointsPerBox} pts/box • Win Bonus: +${spec.winBonus}"
     }
 
     private fun highlightSelectedGridButton() {
@@ -640,7 +650,6 @@ class MainActivity : AppCompatActivity() {
                 setOnClickListener {
                     selectedRows = pair.second.first
                     selectedCols = pair.second.second
-                    // Save user's chosen grid size permanently!
                     prefs.edit()
                         .putInt("user_pref_rows", selectedRows)
                         .putInt("user_pref_cols", selectedCols)
@@ -685,8 +694,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Renders player rows with unmistakable "🤖 BOT: ON" / "👤 BOT: OFF" toggle buttons
-     * and remembers each player's Bot state & custom name in SharedPreferences.
+     * Renders every player row with a real Android ON/OFF Switch in front of the player
+     * to turn AI ON ("AI: ON") or OFF ("AI: OFF").
      */
     private fun renderRoster() {
         rosterLayout.removeAllViews()
@@ -694,7 +703,7 @@ class MainActivity : AppCompatActivity() {
 
         for (i in 0 until playerCount) {
             val color = playerColors[i]
-            val defaultBotState = (i >= 1) // Player 1 defaults to Human (OFF), Player 2+ defaults to Bot (ON)
+            val defaultBotState = (i >= 1)
             val isBot = prefs.getBoolean("user_pref_bot_p$i", defaultBotState)
             val defaultName = if (i == 0) "Player 1" else "Player ${i + 1}"
             val savedName = prefs.getString("user_pref_name_p$i", defaultName) ?: defaultName
@@ -704,6 +713,7 @@ class MainActivity : AppCompatActivity() {
 
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
                 setPadding(14, 10, 14, 10)
                 setBackgroundColor(0xFF121824.toInt())
                 val lp = LinearLayout.LayoutParams(
@@ -726,24 +736,24 @@ class MainActivity : AppCompatActivity() {
                 setBackgroundColor(Color.TRANSPARENT)
             }
 
-            // Clear, easy-to-identify BOT: ON / BOT: OFF toggle button in front of every player
-            val btnBotToggle = Button(this).apply {
-                text = if (player.isBot) "🤖 BOT: ON" else "👤 BOT: OFF"
-                textSize = 11f
-                setPadding(20, 0, 20, 0)
-                setBackgroundColor(if (player.isBot) 0xFF7C3AED.toInt() else 0xFF1E293B.toInt())
-                setTextColor(Color.WHITE)
-                setOnClickListener {
-                    player.isBot = !player.isBot
-                    prefs.edit().putBoolean("user_pref_bot_p$i", player.isBot).apply()
-                    text = if (player.isBot) "🤖 BOT: ON" else "👤 BOT: OFF"
-                    setBackgroundColor(if (player.isBot) 0xFF7C3AED.toInt() else 0xFF1E293B.toInt())
+            // Real Sliding ON/OFF Switch in front of every player to toggle AI!
+            val aiSwitch = Switch(this).apply {
+                isChecked = player.isBot
+                text = if (player.isBot) "AI: ON  " else "AI: OFF  "
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(if (player.isBot) 0xFF38BDF8.toInt() else 0xFF94A3B8.toInt())
+                setOnCheckedChangeListener { _, isChecked ->
+                    player.isBot = isChecked
+                    prefs.edit().putBoolean("user_pref_bot_p$i", isChecked).apply()
+                    text = if (isChecked) "AI: ON  " else "AI: OFF  "
+                    setTextColor(if (isChecked) 0xFF38BDF8.toInt() else 0xFF94A3B8.toInt())
                 }
             }
 
             row.addView(colorBadge)
             row.addView(etName)
-            row.addView(btnBotToggle)
+            row.addView(aiSwitch)
             rosterLayout.addView(row)
         }
     }
@@ -821,7 +831,7 @@ class MainActivity : AppCompatActivity() {
         arenaScoresLayout.removeAllViews()
         eng.players.forEach { p ->
             val tv = TextView(this).apply {
-                val baseText = "${p.name}:${p.score}"
+                val baseText = "${p.name}: ${p.score}"
                 text = if (switchSpeedAnalytics.isChecked && !p.isBot && totalHumanMillis > 0) {
                     val pct = (p.totalTimeMillis.toDouble() / totalHumanMillis.toDouble()) * 100.0
                     "$baseText (${String.format(Locale.US, "%.0f", pct)}% time)  "
@@ -863,7 +873,6 @@ class MainActivity : AppCompatActivity() {
                     winnerOverlay.visibility = View.GONE
                     selectedLevel = (selectedLevel + 1).coerceAtMost(30)
                     setupLevelSelectorBar()
-                    // Keep user's chosen grid size (e.g. 3x3) intact when advancing levels!
                     updateLevelBannerText(selectedLevel)
                     startMatch()
                 }
@@ -912,7 +921,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             val nameView = TextView(this).apply {
-                text = p.name + if (p.isBot) " (BOT)" else ""
+                text = p.name + if (p.isBot) " (AI)" else ""
                 setTextColor(Color.WHITE)
                 textSize = 12f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
