@@ -1,0 +1,54 @@
+{
+  "versionCode": 1,
+  "versionName": "1.0",
+  "adConfigVersion": 101,
+  "websiteUrl": "https://dotsandboxe.netlify.app",
+  "updateMessage": "A new version of Dots & Boxes is live with smoother animations and new features!",
+  "adMode": "hybrid",
+  "ads": [
+    {
+      "id": 1,
+      "enabled": true,
+      "mediaType": "image",
+      "mediaUrl": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80",
+      "adBadge": "SPONSORED • AD #1",
+      "adHeadline": "FixToCode Official Channel",
+      "adDescription": "Explore high-performance apps, C++20 tools, and tech breakdowns by Rameez Ahmad.",
+      "adButtonText": "VISIT OFFICIAL SITE ↗",
+      "adUrl": "https://dotsandboxe.netlify.app"
+    },
+    {
+      "id": 2,
+      "enabled": true,
+      "mediaType": "video",
+      "mediaUrl": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "adBadge": "SPONSORED • AD #2",
+      "adHeadline": "R.A Codec Software Studio",
+      "adDescription": "Custom native Android, Windows Direct2D, and AI automation systems.",
+      "adButtonText": "EXPLORE PROJECTS ↗",
+      "adUrl": "https://dotsandboxe.netlify.app"
+    },
+    {
+      "id": 3,
+      "enabled": true,
+      "mediaType": "image",
+      "mediaUrl": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+      "adBadge": "SPONSORED • AD #3",
+      "adHeadline": "Omni 4K Video Downloader",
+      "adDescription": "Ultra-fast C++20 desktop media downloader powered by FFmpeg & Dear ImGui.",
+      "adButtonText": "DOWNLOAD FREE ↗",
+      "adUrl": "https://dotsandboxe.netlify.app"
+    },
+    {
+      "id": 4,
+      "enabled": true,
+      "mediaType": "image",
+      "mediaUrl": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+      "adBadge": "SPONSORED • AD #4",
+      "adHeadline": "Pak Prime Deals",
+      "adDescription": "Exclusive tech deals, gaming gear, and accessories at unbeatable prices.",
+      "adButtonText": "SHOP NOW ↗",
+      "adUrl": "https://dotsandboxe.netlify.app"
+    }
+  ]
+}

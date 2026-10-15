@@ -4,35 +4,46 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.os.CountDownTimer
-import android.util.Base64
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 import kotlin.concurrent.thread
 
+data class SponsoredAdItem(
+    val id: Int,
+    val enabled: Boolean,
+    val mediaType: String, // "image" or "video"
+    val mediaUrl: String,
+    val badge: String,
+    val headline: String,
+    val description: String,
+    val buttonText: String,
+    val targetUrl: String
+)
+
 class MainActivity : AppCompatActivity() {
 
     companion object {
         const val CURRENT_VERSION_CODE = 1
         const val OFFICIAL_WEB_URL = "https://dotsandboxe.netlify.app"
+        const val GITHUB_RAW_JSON_URL = "https://raw.githubusercontent.com/rameezilyasofficial-cloud/dots-and-boxes-android/main/version.json"
         const val UNITY_GAME_ID = "800398416"
         const val UNITY_TEST_MODE = false
 
-        // 12 Hours in Milliseconds for Sponsored Ad Cache
         const val TWELVE_HOURS_MS = 12L * 60L * 60L * 1000L
-        // 24 Hours in Milliseconds for Daily App Update Check
         const val TWENTY_FOUR_HOURS_MS = 24L * 60L * 60L * 1000L
-
-        const val CLOUD_AD_ENDPOINT = "https://keyvalue.immanuel.co/api/KeyVal/GetValue/fixtocode_dots_800398416/live_ad_config_v1"
     }
 
     private lateinit var prefs: SharedPreferences
@@ -64,10 +75,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnOverlayPlayAgain: Button
     private lateinit var btnOverlaySettings: Button
 
-    // 6-Second Sponsored Ad Overlay Views (Cached for 12 Hours)
+    // 4-Slot Sequential Picture/Video Ad Overlay Views
     private lateinit var adOverlay: FrameLayout
     private lateinit var tvAdBadge: TextView
     private lateinit var tvAdCountdown: TextView
+    private lateinit var ivAdPicture: ImageView
+    private lateinit var vvAdVideo: VideoView
+    private lateinit var tvAdFallbackIcon: TextView
+    private lateinit var pbAdMediaLoading: ProgressBar
     private lateinit var tvAdHeadline: TextView
     private lateinit var tvAdDescription: TextView
     private lateinit var btnAdAction: Button
@@ -75,6 +90,7 @@ class MainActivity : AppCompatActivity() {
     private var isAdSkippable: Boolean = false
     private var currentAdTargetUrl: String = OFFICIAL_WEB_URL
     private var currentAdMode: String = "hybrid"
+    private val bitmapCache = mutableMapOf<String, Bitmap>()
 
     // Daily Web Update Overlay Views
     private lateinit var updateOverlay: FrameLayout
@@ -91,7 +107,7 @@ class MainActivity : AppCompatActivity() {
         0xFF8B5CF6.toInt()  // P5 Violet
     )
 
-    // Starts at 5x5 by default on first install
+    // User Preferences (Defaults to 5x5 on very first install, then remembers user choice!)
     private var selectedLevel: Int = 1
     private var selectedRows = 5
     private var selectedCols = 5
@@ -105,6 +121,11 @@ class MainActivity : AppCompatActivity() {
 
         prefs = getSharedPreferences("dots_boxes_progress", Context.MODE_PRIVATE)
         selectedLevel = getUnlockedLevel()
+
+        // Restore user's saved Grid Size & Player Count preferences (Default 5x5 on first install)
+        selectedRows = prefs.getInt("user_pref_rows", 5)
+        selectedCols = prefs.getInt("user_pref_cols", 5)
+        playerCount = prefs.getInt("user_pref_player_count", 2).coerceIn(2, 5)
 
         configContainer = findViewById(R.id.configContainer)
         arenaContainer = findViewById(R.id.arenaContainer)
@@ -134,6 +155,10 @@ class MainActivity : AppCompatActivity() {
         adOverlay = findViewById(R.id.adOverlay)
         tvAdBadge = findViewById(R.id.tvAdBadge)
         tvAdCountdown = findViewById(R.id.tvAdCountdown)
+        ivAdPicture = findViewById(R.id.ivAdPicture)
+        vvAdVideo = findViewById(R.id.vvAdVideo)
+        tvAdFallbackIcon = findViewById(R.id.tvAdFallbackIcon)
+        pbAdMediaLoading = findViewById(R.id.pbAdMediaLoading)
         tvAdHeadline = findViewById(R.id.tvAdHeadline)
         tvAdDescription = findViewById(R.id.tvAdDescription)
         btnAdAction = findViewById(R.id.btnAdAction)
@@ -147,24 +172,14 @@ class MainActivity : AppCompatActivity() {
         setupAdaptiveGridOptions()
         setupPlayerCountTabs()
         setupLevelSelectorBar()
-        applyLevelPreset(selectedLevel)
+        updateLevelBannerText(selectedLevel)
+        renderRoster()
 
-        // Ensure 5x5 is strictly enforced on very first install
-        if (!prefs.getBoolean("first_install_5x5_initialized", false)) {
-            selectedRows = 5
-            selectedCols = 5
-            highlightSelectedGridButton()
-            prefs.edit().putBoolean("first_install_5x5_initialized", true).apply()
-        }
-
-        // 1. Load 12-Hour Cached Sponsored Ad from local storage
-        loadCachedSponsoredAd()
-
-        // 2. Initialize Unity Ads SDK (Fetches LIVE ads from Unity servers)
+        // Initialize Live Unity Ads SDK (Game ID: 800398416)
         UnityAdsBridge.initialize(this, UNITY_GAME_ID, UNITY_TEST_MODE)
 
-        // 3. Check if 12 hours have passed to refresh Sponsored Ad, and 24 hours for App Update
-        checkTwelveHourSponsoredAdAndDailyUpdate()
+        // Force check on fresh app launch so newly published ads appear immediately!
+        syncFourAdsAndCheckUpdate(forceCheckOnStartup = true)
 
         findViewById<Button>(R.id.btnStartMatch).setOnClickListener { startMatch() }
         findViewById<ImageButton>(R.id.btnLeaveArena).setOnClickListener { returnToConfig() }
@@ -185,7 +200,7 @@ class MainActivity : AppCompatActivity() {
 
         tvAdCountdown.setOnClickListener {
             if (isAdSkippable) {
-                adTimer?.cancel()
+                stopAdMediaPlayback()
                 adOverlay.visibility = View.GONE
                 showVictoryModal()
             }
@@ -204,16 +219,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Sponsored Ad stays cached in the app for 12 HOURS.
-     * Only after 12 hours does the app fetch new Sponsored Ad data from your Web/Cloud.
-     * App Version Update checks once every 24 HOURS.
+     * Fetches the 4-Ad configuration from Netlify (and GitHub Raw fallback).
+     * Caches for 12 hours during gameplay, and refreshes on app startup if updated.
      */
-    private fun checkTwelveHourSponsoredAdAndDailyUpdate() {
+    private fun syncFourAdsAndCheckUpdate(forceCheckOnStartup: Boolean) {
         val now = System.currentTimeMillis()
         val lastAdSyncMs = prefs.getLong("last_sponsored_ad_sync_ms", 0L)
         val lastUpdateCheckMs = prefs.getLong("last_version_check_ms", 0L)
 
-        val needAdRefresh = (now - lastAdSyncMs) >= TWELVE_HOURS_MS
+        val needAdRefresh = forceCheckOnStartup || ((now - lastAdSyncMs) >= TWELVE_HOURS_MS)
         val needVersionCheck = (now - lastUpdateCheckMs) >= TWENTY_FOUR_HOURS_MS
 
         if (!needAdRefresh && !needVersionCheck) return
@@ -221,65 +235,52 @@ class MainActivity : AppCompatActivity() {
         thread(start = true) {
             var json: JSONObject? = null
 
-            // Try Live Cloud Ad Endpoint first (updated instantly by your Web Admin Panel)
-            try {
-                val cloudConn = (URL(CLOUD_AD_ENDPOINT).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 4500
-                    readTimeout = 4500
-                }
-                if (cloudConn.responseCode == 200) {
-                    val rawB64 = cloudConn.inputStream.bufferedReader().use { it.readText() }.trim().removeSurrounding("\"")
-                    if (rawB64.length > 10) {
-                        val decodedBytes = Base64.decode(rawB64, Base64.URL_SAFE or Base64.NO_WRAP)
-                        json = JSONObject(String(decodedBytes, Charsets.UTF_8))
-                    }
-                }
-                cloudConn.disconnect()
-            } catch (e: Exception) {}
+            // 1. Fetch from Netlify Live URL
+            val urlsToTry = listOf(
+                "$OFFICIAL_WEB_URL/version.json?t=$now",
+                "$GITHUB_RAW_JSON_URL?t=$now"
+            )
 
-            // Fallback to https://dotsandboxe.netlify.app/version.json
-            if (json == null) {
+            for (endpoint in urlsToTry) {
                 try {
-                    val netlifyUrl = "$OFFICIAL_WEB_URL/version.json?t=${now / TWELVE_HOURS_MS}"
-                    val netConn = (URL(netlifyUrl).openConnection() as HttpURLConnection).apply {
+                    val conn = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                         requestMethod = "GET"
-                        connectTimeout = 5000
-                        readTimeout = 5000
+                        connectTimeout = 4500
+                        readTimeout = 4500
+                        useCaches = false
                     }
-                    if (netConn.responseCode == 200) {
-                        val text = netConn.inputStream.bufferedReader().use { it.readText() }
-                        json = JSONObject(text)
+                    if (conn.responseCode == 200) {
+                        val text = conn.inputStream.bufferedReader().use { it.readText() }
+                        val parsed = JSONObject(text)
+                        if (parsed.has("ads") || parsed.has("adHeadline")) {
+                            json = parsed
+                            conn.disconnect()
+                            break
+                        }
                     }
-                    netConn.disconnect()
+                    conn.disconnect()
                 } catch (e: Exception) {}
             }
 
             val finalJson = json ?: return@thread
 
-            // 1. If 12 Hours expired, lock in the new Sponsored Ad for the next 12 Hours
-            if (needAdRefresh) {
-                val adMode = finalJson.optString("adMode", "hybrid")
-                val adBadge = finalJson.optString("adBadge", "")
-                val adHeadline = finalJson.optString("adHeadline", "")
-                val adDesc = finalJson.optString("adDescription", "")
-                val adBtn = finalJson.optString("adButtonText", "")
-                val adUrl = finalJson.optString("adUrl", "")
+            // Save 4-Ad JSON Array & Mode into 12-Hour Local Cache
+            val adMode = finalJson.optString("adMode", "hybrid")
+            val adsArray = finalJson.optJSONArray("ads")
 
-                if (adHeadline.isNotEmpty()) {
-                    prefs.edit()
-                        .putLong("last_sponsored_ad_sync_ms", now)
-                        .putString("ad_mode", adMode)
-                        .putString("ad_badge", adBadge)
-                        .putString("ad_headline", adHeadline)
-                        .putString("ad_desc", adDesc)
-                        .putString("ad_btn", adBtn)
-                        .putString("ad_url", adUrl)
-                        .apply()
-                }
+            val editor = prefs.edit()
+                .putLong("last_sponsored_ad_sync_ms", now)
+                .putString("ad_mode", adMode)
+
+            if (adsArray != null && adsArray.length() > 0) {
+                editor.putString("cached_four_ads_json", adsArray.toString())
             }
+            editor.apply()
 
-            // 2. If 24 Hours expired, check if a new App Version is available
+            // Pre-cache any Picture Ad bitmaps in background
+            preloadFourAdPictures()
+
+            // Check App Version Update once every 24 Hours
             val remoteVersionCode = finalJson.optInt("versionCode", CURRENT_VERSION_CODE)
             val remoteVersionName = finalJson.optString("versionName", "New")
             val updateMsg = finalJson.optString(
@@ -289,7 +290,6 @@ class MainActivity : AppCompatActivity() {
             val targetWebUrl = finalJson.optString("websiteUrl", OFFICIAL_WEB_URL)
 
             runOnUiThread {
-                loadCachedSponsoredAd()
                 if (needVersionCheck) {
                     prefs.edit().putLong("last_version_check_ms", now).apply()
                     if (remoteVersionCode > CURRENT_VERSION_CODE) {
@@ -306,20 +306,74 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadCachedSponsoredAd() {
-        val mode = prefs.getString("ad_mode", "hybrid")
-        val badge = prefs.getString("ad_badge", null)
-        val headline = prefs.getString("ad_headline", null)
-        val desc = prefs.getString("ad_desc", null)
-        val btn = prefs.getString("ad_btn", null)
-        val url = prefs.getString("ad_url", null)
+    private fun getFourSponsoredAdsList(): List<SponsoredAdItem> {
+        val rawJson = prefs.getString("cached_four_ads_json", null)
+        val list = mutableListOf<SponsoredAdItem>()
 
-        if (!mode.isNullOrBlank()) currentAdMode = mode
-        if (!badge.isNullOrBlank()) tvAdBadge.text = badge
-        if (!headline.isNullOrBlank()) tvAdHeadline.text = headline
-        if (!desc.isNullOrBlank()) tvAdDescription.text = desc
-        if (!btn.isNullOrBlank()) btnAdAction.text = btn
-        if (!url.isNullOrBlank()) currentAdTargetUrl = url
+        if (!rawJson.isNullOrBlank()) {
+            try {
+                val arr = JSONArray(rawJson)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    list.add(
+                        SponsoredAdItem(
+                            id = obj.optInt("id", i + 1),
+                            enabled = obj.optBoolean("enabled", true),
+                            mediaType = obj.optString("mediaType", "image").lowercase(Locale.US),
+                            mediaUrl = obj.optString("mediaUrl", "").trim(),
+                            badge = obj.optString("adBadge", "SPONSORED • AD #${i + 1}"),
+                            headline = obj.optString("adHeadline", "FixToCode Official"),
+                            description = obj.optString("adDescription", ""),
+                            buttonText = obj.optString("adButtonText", "VISIT OFFICIAL SITE ↗"),
+                            targetUrl = obj.optString("adUrl", OFFICIAL_WEB_URL)
+                        )
+                    )
+                }
+            } catch (e: Exception) {}
+        }
+
+        if (list.isEmpty()) {
+            list.add(
+                SponsoredAdItem(
+                    1, true, "image",
+                    "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80",
+                    "SPONSORED • AD #1", "FixToCode Official Channel",
+                    "Explore high-performance apps, C++20 tools, and tech breakdowns by Rameez Ahmad.",
+                    "VISIT OFFICIAL SITE ↗", OFFICIAL_WEB_URL
+                )
+            )
+        }
+        return list
+    }
+
+    private fun preloadFourAdPictures() {
+        val ads = getFourSponsoredAdsList()
+        for (ad in ads) {
+            if (ad.enabled && ad.mediaType == "image" && ad.mediaUrl.startsWith("http") && !bitmapCache.containsKey(ad.mediaUrl)) {
+                try {
+                    val conn = (URL(ad.mediaUrl).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 5000
+                        readTimeout = 5000
+                    }
+                    if (conn.responseCode == 200) {
+                        val bmp = BitmapFactory.decodeStream(conn.inputStream)
+                        if (bmp != null) bitmapCache[ad.mediaUrl] = bmp
+                    }
+                    conn.disconnect()
+                } catch (e: Exception) {}
+            }
+        }
+    }
+
+    private fun getNextSequentialSponsoredAd(): SponsoredAdItem {
+        val allAds = getFourSponsoredAdsList()
+        val enabledAds = allAds.filter { it.enabled }
+        val pool = if (enabledAds.isNotEmpty()) enabledAds else allAds
+
+        val seqIdx = prefs.getInt("sponsored_ad_seq_idx", 0)
+        val chosen = pool[seqIdx % pool.size]
+        prefs.edit().putInt("sponsored_ad_seq_idx", (seqIdx + 1) % pool.size).apply()
+        return chosen
     }
 
     private fun openWebUrl(url: String) {
@@ -329,20 +383,16 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {}
     }
 
-    /**
-     * Triggers every 2 plays:
-     * - Unity Ads fetches LIVE from Unity servers.
-     * - Your Sponsored Ad uses the 12-hour cached configuration (and checks if 12h expired).
-     */
     private fun handleMatchEndWithAdCheck() {
-        checkTwelveHourSponsoredAdAndDailyUpdate()
+        syncFourAdsAndCheckUpdate(forceCheckOnStartup = false)
 
         val plays = prefs.getInt("matches_played_count", 0) + 1
         prefs.edit().putInt("matches_played_count", plays).apply()
+        currentAdMode = prefs.getString("ad_mode", "hybrid") ?: "hybrid"
 
         if (plays % 2 == 0) {
             if (currentAdMode == "custom") {
-                showSixSecondSponsoredAdThenVictory()
+                showSequentialSponsoredAdThenVictory()
             } else if (UnityAdsBridge.isReady()) {
                 UnityAdsBridge.showInterstitial(this, object : UnityAdsBridge.AdCompleteCallback {
                     override fun onAdFinished() {
@@ -350,12 +400,12 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     override fun onAdFailed() {
-                        runOnUiThread { showSixSecondSponsoredAdThenVictory() }
+                        runOnUiThread { showSequentialSponsoredAdThenVictory() }
                     }
                 })
             } else {
                 UnityAdsBridge.preloadAd("Interstitial_Android")
-                showSixSecondSponsoredAdThenVictory()
+                showSequentialSponsoredAdThenVictory()
             }
         } else {
             UnityAdsBridge.preloadAd("Interstitial_Android")
@@ -363,13 +413,95 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showSixSecondSponsoredAdThenVictory() {
-        loadCachedSponsoredAd()
+    /**
+     * Plays the next Sponsored Ad in the 1->4 sequence (Supports Picture or Video!)
+     */
+    private fun showSequentialSponsoredAdThenVictory() {
+        val ad = getNextSequentialSponsoredAd()
+
         adTimer?.cancel()
+        stopAdMediaPlayback()
+
         isAdSkippable = false
+        tvAdBadge.text = ad.badge
+        tvAdHeadline.text = ad.headline
+        tvAdDescription.text = ad.description
+        btnAdAction.text = ad.buttonText
+        currentAdTargetUrl = ad.targetUrl
+
         tvAdCountdown.text = "Skip in 6s"
         tvAdCountdown.setTextColor(0xFF38BDF8.toInt())
         adOverlay.visibility = View.VISIBLE
+
+        // Configure Media Stage (Picture vs Video)
+        if (ad.mediaType == "video" && ad.mediaUrl.startsWith("http")) {
+            ivAdPicture.visibility = View.GONE
+            tvAdFallbackIcon.visibility = View.GONE
+            pbAdMediaLoading.visibility = View.VISIBLE
+            vvAdVideo.visibility = View.VISIBLE
+
+            try {
+                vvAdVideo.setVideoURI(Uri.parse(ad.mediaUrl))
+                vvAdVideo.setOnPreparedListener { mp ->
+                    pbAdMediaLoading.visibility = View.GONE
+                    mp.isLooping = true
+                    vvAdVideo.start()
+                }
+                vvAdVideo.setOnErrorListener { _, _, _ ->
+                    pbAdMediaLoading.visibility = View.GONE
+                    vvAdVideo.visibility = View.GONE
+                    tvAdFallbackIcon.visibility = View.VISIBLE
+                    true
+                }
+            } catch (e: Exception) {
+                pbAdMediaLoading.visibility = View.GONE
+                vvAdVideo.visibility = View.GONE
+                tvAdFallbackIcon.visibility = View.VISIBLE
+            }
+        } else if (ad.mediaUrl.startsWith("http")) {
+            vvAdVideo.visibility = View.GONE
+            val cachedBmp = bitmapCache[ad.mediaUrl]
+            if (cachedBmp != null) {
+                tvAdFallbackIcon.visibility = View.GONE
+                pbAdMediaLoading.visibility = View.GONE
+                ivAdPicture.setImageBitmap(cachedBmp)
+                ivAdPicture.visibility = View.VISIBLE
+            } else {
+                ivAdPicture.visibility = View.GONE
+                tvAdFallbackIcon.visibility = View.VISIBLE
+                pbAdMediaLoading.visibility = View.VISIBLE
+                thread(start = true) {
+                    try {
+                        val conn = (URL(ad.mediaUrl).openConnection() as HttpURLConnection).apply {
+                            connectTimeout = 4500
+                            readTimeout = 4500
+                        }
+                        if (conn.responseCode == 200) {
+                            val bmp = BitmapFactory.decodeStream(conn.inputStream)
+                            if (bmp != null) {
+                                bitmapCache[ad.mediaUrl] = bmp
+                                runOnUiThread {
+                                    if (adOverlay.visibility == View.VISIBLE) {
+                                        tvAdFallbackIcon.visibility = View.GONE
+                                        pbAdMediaLoading.visibility = View.GONE
+                                        ivAdPicture.setImageBitmap(bmp)
+                                        ivAdPicture.visibility = View.VISIBLE
+                                    }
+                                }
+                            }
+                        }
+                        conn.disconnect()
+                    } catch (e: Exception) {
+                        runOnUiThread { pbAdMediaLoading.visibility = View.GONE }
+                    }
+                }
+            }
+        } else {
+            vvAdVideo.visibility = View.GONE
+            ivAdPicture.visibility = View.GONE
+            pbAdMediaLoading.visibility = View.GONE
+            tvAdFallbackIcon.visibility = View.VISIBLE
+        }
 
         adTimer = object : CountDownTimer(6000L, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
@@ -383,6 +515,15 @@ class MainActivity : AppCompatActivity() {
                 tvAdCountdown.setTextColor(0xFFF59E0B.toInt())
             }
         }.start()
+    }
+
+    private fun stopAdMediaPlayback() {
+        adTimer?.cancel()
+        try {
+            if (vvAdVideo.isPlaying) {
+                vvAdVideo.stopPlayback()
+            }
+        } catch (e: Exception) {}
     }
 
     private fun getUnlockedLevel(): Int {
@@ -429,12 +570,20 @@ class MainActivity : AppCompatActivity() {
                     if (isUnlocked) {
                         selectedLevel = spec.number
                         setupLevelSelectorBar()
-                        applyLevelPreset(spec.number)
+                        updateLevelBannerText(spec.number)
                     }
                 }
             }
             levelOptionsLayout.addView(btn)
         }
+    }
+
+    /**
+     * Updates the Level Info Banner WITHOUT overwriting user's saved Grid Size or Bot Settings!
+     */
+    private fun updateLevelBannerText(levelNum: Int) {
+        val spec = LevelRepository.levels[(levelNum - 1).coerceIn(0, 29)]
+        tvLevelInfo.text = "LVL ${spec.number}: ${spec.title} •${spec.pointsPerBox} pts/box • Win Bonus: +${spec.winBonus}"
     }
 
     private fun highlightSelectedGridButton() {
@@ -445,26 +594,6 @@ class MainActivity : AppCompatActivity() {
             b.setBackgroundColor(if (match) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
             b.setTextColor(if (match) Color.BLACK else Color.WHITE)
         }
-    }
-
-    private fun applyLevelPreset(levelNum: Int) {
-        val spec = LevelRepository.levels[(levelNum - 1).coerceIn(0, 29)]
-        tvLevelInfo.text = "LVL ${spec.number}: ${spec.title} •${spec.pointsPerBox} pts/box • Win Bonus: +${spec.winBonus}"
-
-        selectedRows = spec.rows
-        selectedCols = spec.cols
-        highlightSelectedGridButton()
-
-        playerCount = spec.playerCount
-        val counts = listOf(2, 3, 4, 5)
-        for (i in 0 until playerCountTabsLayout.childCount) {
-            val b = playerCountTabsLayout.getChildAt(i) as Button
-            val match = counts.getOrNull(i) == playerCount
-            b.setBackgroundColor(if (match) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
-            b.setTextColor(if (match) Color.BLACK else Color.WHITE)
-        }
-
-        renderRoster(forceBotsForLevel = true)
     }
 
     private fun isTablet(): Boolean {
@@ -502,15 +631,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         gridPresets.forEach { pair ->
-            val isDefault5x5 = (pair.second.first == 5 && pair.second.second == 5)
+            val isSelected = (pair.second.first == selectedRows && pair.second.second == selectedCols)
             val btn = Button(this).apply {
                 text = pair.first
                 textSize = 12f
-                setTextColor(if (isDefault5x5) Color.BLACK else Color.WHITE)
-                setBackgroundColor(if (isDefault5x5) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
+                setTextColor(if (isSelected) Color.BLACK else Color.WHITE)
+                setBackgroundColor(if (isSelected) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
                 setOnClickListener {
                     selectedRows = pair.second.first
                     selectedCols = pair.second.second
+                    // Save user's chosen grid size permanently!
+                    prefs.edit()
+                        .putInt("user_pref_rows", selectedRows)
+                        .putInt("user_pref_cols", selectedCols)
+                        .apply()
                     highlightSelectedGridButton()
                 }
             }
@@ -533,7 +667,9 @@ class MainActivity : AppCompatActivity() {
                 setTextColor(if (isSelected) Color.BLACK else Color.WHITE)
                 setBackgroundColor(if (isSelected) 0xFF38BDF8.toInt() else 0xFF121824.toInt())
                 setOnClickListener {
+                    saveRosterInputsToPrefs()
                     playerCount = count
+                    prefs.edit().putInt("user_pref_player_count", playerCount).apply()
                     for (i in 0 until playerCountTabsLayout.childCount) {
                         val b = playerCountTabsLayout.getChildAt(i) as Button
                         b.setBackgroundColor(0xFF121824.toInt())
@@ -541,22 +677,29 @@ class MainActivity : AppCompatActivity() {
                     }
                     setBackgroundColor(0xFF38BDF8.toInt())
                     setTextColor(Color.BLACK)
-                    renderRoster(forceBotsForLevel = false)
+                    renderRoster()
                 }
             }
             playerCountTabsLayout.addView(btn)
         }
     }
 
-    private fun renderRoster(forceBotsForLevel: Boolean = false) {
+    /**
+     * Renders player rows with unmistakable "🤖 BOT: ON" / "👤 BOT: OFF" toggle buttons
+     * and remembers each player's Bot state & custom name in SharedPreferences.
+     */
+    private fun renderRoster() {
         rosterLayout.removeAllViews()
         activePlayers.clear()
 
         for (i in 0 until playerCount) {
             val color = playerColors[i]
-            val isBot = if (forceBotsForLevel) (i >= 1) else (i == 1 && playerCount == 2)
-            val defaultName = if (i == 0) "Player 1" else if (isBot) "Bot L$selectedLevel-${i}" else "Player ${i + 1}"
-            val player = Player(i, defaultName, color, isBot)
+            val defaultBotState = (i >= 1) // Player 1 defaults to Human (OFF), Player 2+ defaults to Bot (ON)
+            val isBot = prefs.getBoolean("user_pref_bot_p$i", defaultBotState)
+            val defaultName = if (i == 0) "Player 1" else "Player ${i + 1}"
+            val savedName = prefs.getString("user_pref_name_p$i", defaultName) ?: defaultName
+
+            val player = Player(i, savedName, color, isBot)
             activePlayers.add(player)
 
             val row = LinearLayout(this).apply {
@@ -577,44 +720,55 @@ class MainActivity : AppCompatActivity() {
 
             val etName = EditText(this).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                setText(defaultName)
+                setText(savedName)
                 setTextColor(Color.WHITE)
                 textSize = 13f
                 setBackgroundColor(Color.TRANSPARENT)
             }
 
-            val btnBot = Button(this).apply {
-                text = if (isBot) "BOT" else "HUMAN"
+            // Clear, easy-to-identify BOT: ON / BOT: OFF toggle button in front of every player
+            val btnBotToggle = Button(this).apply {
+                text = if (player.isBot) "🤖 BOT: ON" else "👤 BOT: OFF"
                 textSize = 11f
-                setBackgroundColor(if (isBot) 0xFF4C1D95.toInt() else 0xFF1E293B.toInt())
+                setPadding(20, 0, 20, 0)
+                setBackgroundColor(if (player.isBot) 0xFF7C3AED.toInt() else 0xFF1E293B.toInt())
                 setTextColor(Color.WHITE)
                 setOnClickListener {
                     player.isBot = !player.isBot
-                    text = if (player.isBot) "BOT" else "HUMAN"
-                    setBackgroundColor(if (player.isBot) 0xFF4C1D95.toInt() else 0xFF1E293B.toInt())
+                    prefs.edit().putBoolean("user_pref_bot_p$i", player.isBot).apply()
+                    text = if (player.isBot) "🤖 BOT: ON" else "👤 BOT: OFF"
+                    setBackgroundColor(if (player.isBot) 0xFF7C3AED.toInt() else 0xFF1E293B.toInt())
                 }
             }
 
             row.addView(colorBadge)
             row.addView(etName)
-            row.addView(btnBot)
+            row.addView(btnBotToggle)
             rosterLayout.addView(row)
         }
     }
 
-    private fun startMatch() {
+    private fun saveRosterInputsToPrefs() {
+        val editor = prefs.edit()
         for (i in 0 until rosterLayout.childCount) {
             val row = rosterLayout.getChildAt(i) as? LinearLayout ?: continue
             val etName = row.getChildAt(1) as? EditText ?: continue
             val inputName = etName.text.toString().trim()
             if (inputName.isNotEmpty() && i < activePlayers.size) {
                 activePlayers[i].name = inputName
+                editor.putString("user_pref_name_p$i", inputName)
             }
         }
+        editor.apply()
+    }
+
+    private fun startMatch() {
+        saveRosterInputsToPrefs()
 
         gameView.audio.isEnabled = switchSound.isChecked
         gameView.isVibrationEnabled = switchVibration.isChecked
 
+        stopAdMediaPlayback()
         adOverlay.visibility = View.GONE
         winnerOverlay.visibility = View.GONE
         configContainer.visibility = View.GONE
@@ -647,12 +801,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun returnToConfig() {
-        adTimer?.cancel()
+        stopAdMediaPlayback()
         adOverlay.visibility = View.GONE
         winnerOverlay.visibility = View.GONE
         arenaContainer.visibility = View.GONE
         configContainer.visibility = View.VISIBLE
         setupLevelSelectorBar()
+        highlightSelectedGridButton()
     }
 
     private fun updateArenaHud() {
@@ -708,7 +863,8 @@ class MainActivity : AppCompatActivity() {
                     winnerOverlay.visibility = View.GONE
                     selectedLevel = (selectedLevel + 1).coerceAtMost(30)
                     setupLevelSelectorBar()
-                    applyLevelPreset(selectedLevel)
+                    // Keep user's chosen grid size (e.g. 3x3) intact when advancing levels!
+                    updateLevelBannerText(selectedLevel)
                     startMatch()
                 }
             } else {
@@ -756,7 +912,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             val nameView = TextView(this).apply {
-                text = p.name + if (p.isBot) " (AI)" else ""
+                text = p.name + if (p.isBot) " (BOT)" else ""
                 setTextColor(Color.WHITE)
                 textSize = 12f
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -831,7 +987,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        adTimer?.cancel()
+        stopAdMediaPlayback()
         super.onDestroy()
     }
 }
