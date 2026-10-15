@@ -54,7 +54,6 @@ class GameView @JvmOverloads constructor(
         val startX = (width - (cellSize * eng.cols)) / 2f
         val startY = (height - (cellSize * eng.rows)) / 2f
 
-        // 1. Boxes with Centered Initial
         for (r in 0 until eng.rows) {
             for (c in 0 until eng.cols) {
                 val ownerId = eng.boxes[r][c] ?: continue
@@ -77,7 +76,6 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 2. Horizontal Lines
         for (r in 0..eng.rows) {
             for (c in 0 until eng.cols) {
                 val ownerId = eng.hLines[r][c]
@@ -95,7 +93,6 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 3. Vertical Lines
         for (r in 0 until eng.rows) {
             for (c in 0..eng.cols) {
                 val ownerId = eng.vLines[r][c]
@@ -113,7 +110,6 @@ class GameView @JvmOverloads constructor(
             }
         }
 
-        // 4. Corner Pegs
         val dotRadius = min(11f, cellSize * 0.11f)
         for (r in 0..eng.rows) {
             for (c in 0..eng.cols) {

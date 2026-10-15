@@ -22,7 +22,9 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val CURRENT_VERSION_CODE = 1
-        const val OFFICIAL_WEB_URL = "https://dotsandboxes.netlify.app"
+        const val OFFICIAL_WEB_URL = "https://dotsandboxe.netlify.app"
+        const val UNITY_GAME_ID = "800398416"
+        const val UNITY_TEST_MODE = false
     }
 
     private lateinit var prefs: SharedPreferences
@@ -54,7 +56,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnOverlayPlayAgain: Button
     private lateinit var btnOverlaySettings: Button
 
-    // 6-Second Ad Overlay Views
+    // 6-Second Ad Overlay Views (Fallback / House Ad)
     private lateinit var adOverlay: FrameLayout
     private lateinit var tvAdBadge: TextView
     private lateinit var tvAdCountdown: TextView
@@ -62,6 +64,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvAdDescription: TextView
     private lateinit var btnAdAction: Button
     private var adTimer: CountDownTimer? = null
+    private var isAdSkippable: Boolean = false
     private var currentAdTargetUrl: String = OFFICIAL_WEB_URL
 
     // Daily Web Update Overlay Views
@@ -148,6 +151,9 @@ class MainActivity : AppCompatActivity() {
         // Load cached ad texts if previously synced from web
         loadCachedAdConfig()
 
+        // Initialize Family-Safe Unity Ads SDK (Game ID: 800398416)
+        UnityAdsBridge.initialize(this, UNITY_GAME_ID, UNITY_TEST_MODE)
+
         // Check for web updates once per day
         checkWebUpdateOncePerDay()
 
@@ -168,6 +174,14 @@ class MainActivity : AppCompatActivity() {
             openWebUrl(currentAdTargetUrl)
         }
 
+        tvAdCountdown.setOnClickListener {
+            if (isAdSkippable) {
+                adTimer?.cancel()
+                adOverlay.visibility = View.GONE
+                showVictoryModal()
+            }
+        }
+
         btnUpdateLater.setOnClickListener {
             updateOverlay.visibility = View.GONE
         }
@@ -181,13 +195,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Checks 1 time per day if a newer version is available on the web
+     * Checks 1 time per day if a newer version is available on https://dotsandboxe.netlify.app
      */
     private fun checkWebUpdateOncePerDay() {
         val currentEpochDay = System.currentTimeMillis() / 86_400_000L
         val lastCheckedDay = prefs.getLong("last_update_check_day", -1L)
 
-        // Only perform network check once per calendar day
         if (currentEpochDay <= lastCheckedDay) return
 
         thread(start = true) {
@@ -204,10 +217,8 @@ class MainActivity : AppCompatActivity() {
                     val responseText = conn.inputStream.bufferedReader().use { it.readText() }
                     val json = JSONObject(responseText)
 
-                    // Mark today's check complete
                     prefs.edit().putLong("last_update_check_day", currentEpochDay).apply()
 
-                    // Sync dynamic ad content if provided in version.json
                     val adBadge = json.optString("adBadge", "")
                     val adHeadline = json.optString("adHeadline", "")
                     val adDesc = json.optString("adDescription", "")
@@ -273,33 +284,52 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Increments play count and shows a 6-second ad strictly after every 2 plays
+     * Increments play count and shows a Unity Ad (or 6s skippable fallback) strictly after every 2 plays
      */
     private fun handleMatchEndWithAdCheck() {
         val plays = prefs.getInt("matches_played_count", 0) + 1
         prefs.edit().putInt("matches_played_count", plays).apply()
 
         if (plays % 2 == 0) {
-            showSixSecondAdThenVictory()
+            if (UnityAdsBridge.isReady()) {
+                UnityAdsBridge.showInterstitial(this, object : UnityAdsBridge.AdCompleteCallback {
+                    override fun onAdFinished() {
+                        runOnUiThread { showVictoryModal() }
+                    }
+
+                    override fun onAdFailed() {
+                        runOnUiThread { showSixSecondAdThenVictory() }
+                    }
+                })
+            } else {
+                UnityAdsBridge.preloadAd("Interstitial_Android")
+                showSixSecondAdThenVictory()
+            }
         } else {
             showVictoryModal()
         }
     }
 
+    /**
+     * Fallback 6-Second YouTube-Style Ad Overlay with "SKIP AD ⏭" button unlock
+     */
     private fun showSixSecondAdThenVictory() {
         adTimer?.cancel()
-        tvAdCountdown.text = "Ad ends in 6s"
+        isAdSkippable = false
+        tvAdCountdown.text = "Skip in 6s"
+        tvAdCountdown.setTextColor(0xFF38BDF8.toInt())
         adOverlay.visibility = View.VISIBLE
 
         adTimer = object : CountDownTimer(6000L, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
                 val secondsLeft = ((millisUntilFinished + 999L) / 1000L).toInt().coerceAtLeast(1)
-                tvAdCountdown.text = "Ad ends in ${secondsLeft}s"
+                tvAdCountdown.text = "Skip in ${secondsLeft}s"
             }
 
             override fun onFinish() {
-                adOverlay.visibility = View.GONE
-                showVictoryModal()
+                isAdSkippable = true
+                tvAdCountdown.text = "SKIP AD ⏭"
+                tvAdCountdown.setTextColor(0xFFF59E0B.toInt())
             }
         }.start()
     }

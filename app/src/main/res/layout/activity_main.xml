@@ -366,7 +366,7 @@
         </ScrollView>
     </FrameLayout>
 
-    <!-- WINDOW 4: 6-SECOND INTERSTITIAL AD OVERLAY (Shows Every 2 Plays) -->
+    <!-- WINDOW 4: 6-SECOND INTERSTITIAL AD OVERLAY (Fallback / House Ad) -->
     <FrameLayout
         android:id="@+id/adOverlay"
         android:layout_width="match_parent"
@@ -386,7 +386,7 @@
             android:padding="24dp"
             android:gravity="center_horizontal">
 
-            <!-- Top Ad Bar: Sponsored Tag + 6s Countdown Pill -->
+            <!-- Top Ad Bar: Sponsored Tag + 6s YouTube-Style Skip Pill -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -408,12 +408,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_stat_item"
-                    android:paddingHorizontal="12dp"
-                    android:paddingVertical="5dp"
-                    android:text="Ad ends in 6s"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="6dp"
+                    android:text="Skip in 6s"
                     android:textColor="#38BDF8"
                     android:textSize="12sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:clickable="true"
+                    android:focusable="true" />
             </LinearLayout>
 
             <TextView

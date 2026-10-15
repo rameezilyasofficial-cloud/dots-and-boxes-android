@@ -13,11 +13,10 @@ data class LevelSpec(
 
 object LevelRepository {
     val levels: List<LevelSpec> = (1..30).map { lvl ->
-        // Starts at 5x5 from Level 1 as requested, scaling up to 5x7 and 5x8
         val (r, c) = when {
-            lvl <= 15 -> Pair(5, 5) // 5x5 default starting grid
-            lvl <= 23 -> Pair(7, 5) // 5x7
-            else -> Pair(8, 5)      // 5x8
+            lvl <= 15 -> Pair(5, 5)
+            lvl <= 23 -> Pair(7, 5)
+            else -> Pair(8, 5)
         }
         val pCount = when {
             lvl in listOf(6, 12, 18, 24) -> 3
