@@ -421,11 +421,11 @@ class MainActivity : AppCompatActivity() {
                     }
                 })
             } else {
-                UnityAdsBridge.preloadAd("Interstitial_Android")
+                UnityAdsBridge.preloadAd("BP_Interstitial_Android")
                 showSequentialSponsoredAdThenVictory()
             }
         } else {
-            UnityAdsBridge.preloadAd("Interstitial_Android")
+            UnityAdsBridge.preloadAd("BP_Interstitial_Android")
             showVictoryModal()
         }
     }

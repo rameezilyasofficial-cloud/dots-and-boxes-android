@@ -10,8 +10,12 @@ import com.unity3d.ads.UnityAdsShowOptions;
 import com.unity3d.ads.metadata.MetaData;
 
 public class UnityAdsBridge {
+    public static final String PRIMARY_PLACEMENT_ID = "BP_Interstitial_Android";
+    public static final String REWARDED_FALLBACK_ID = "BP_Rewarded_Android";
+    public static final String LEGACY_PLACEMENT_ID = "Interstitial_Android";
+
     private static boolean isAdLoaded = false;
-    private static String activePlacementId = "Interstitial_Android";
+    private static String activePlacementId = PRIMARY_PLACEMENT_ID;
 
     public interface AdCompleteCallback {
         void onAdFinished();
@@ -31,7 +35,7 @@ public class UnityAdsBridge {
             UnityAds.initialize(context.getApplicationContext(), gameId, testMode, new IUnityAdsInitializationListener() {
                 @Override
                 public void onInitializationComplete() {
-                    preloadAd("Interstitial_Android");
+                    preloadAd(PRIMARY_PLACEMENT_ID);
                 }
 
                 @Override
@@ -55,8 +59,10 @@ public class UnityAdsBridge {
 
                 @Override
                 public void onUnityAdsFailedToLoad(String failedPlacementId, UnityAds.UnityAdsLoadError error, String message) {
-                    if ("Interstitial_Android".equals(failedPlacementId)) {
-                        preloadAd("video");
+                    if (PRIMARY_PLACEMENT_ID.equals(failedPlacementId)) {
+                        preloadAd(REWARDED_FALLBACK_ID);
+                    } else if (REWARDED_FALLBACK_ID.equals(failedPlacementId)) {
+                        preloadAd(LEGACY_PLACEMENT_ID);
                     } else {
                         isAdLoaded = false;
                     }
@@ -73,7 +79,7 @@ public class UnityAdsBridge {
 
     public static void showInterstitial(final Activity activity, final AdCompleteCallback callback) {
         if (!isAdLoaded) {
-            preloadAd("Interstitial_Android");
+            preloadAd(PRIMARY_PLACEMENT_ID);
             callback.onAdFailed();
             return;
         }
@@ -88,13 +94,13 @@ public class UnityAdsBridge {
 
                 @Override
                 public void onUnityAdsShowComplete(String placementId, UnityAds.UnityAdsShowCompletionState state) {
-                    preloadAd("Interstitial_Android");
+                    preloadAd(PRIMARY_PLACEMENT_ID);
                     callback.onAdFinished();
                 }
 
                 @Override
                 public void onUnityAdsShowFailure(String placementId, UnityAds.UnityAdsShowError error, String message) {
-                    preloadAd("Interstitial_Android");
+                    preloadAd(PRIMARY_PLACEMENT_ID);
                     callback.onAdFailed();
                 }
             });
